@@ -91,6 +91,17 @@ function decorateGmRow(li, combatant, entry) {
     text.textContent = entry.alias;
 
     line.append(icon, state, text);
+
+    // Compact identification tag (PARTIAL / IDENTIFIED only; detail lives
+    // in the editor — spec 16.3).
+    const idStatus = entry.identification?.status;
+    if ( idStatus && idStatus !== "unidentified" ) {
+      const tag = document.createElement("span");
+      tag.classList.add(CSS.aliasState, "pf15im-id-tag");
+      tag.dataset.pf15imId = idStatus;
+      tag.textContent = game.i18n.localize(`PF15IM.IdStatus.${idStatus}`).toUpperCase();
+      line.append(tag);
+    }
     nameEl.insertAdjacentElement("afterend", line);
   }
 

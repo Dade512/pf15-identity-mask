@@ -6,7 +6,7 @@
  * underlying documents (and their names) to player clients; see README.
  */
 
-import { registerSettings } from "./state.mjs";
+import { registerSettings, migrateRegistry } from "./state.mjs";
 import { onRenderCombatTracker } from "./tracker.mjs";
 import { onRenderTokenHUD } from "./hud.mjs";
 import { onDrawToken, onRefreshToken } from "./canvas.mjs";
@@ -15,6 +15,9 @@ import { onRenderChatMessageHTML } from "./chat.mjs";
 Hooks.once("init", () => {
   registerSettings();
 });
+
+// One-time v1 -> v2 registry container migration (GM client; idempotent).
+Hooks.once("ready", migrateRegistry);
 
 Hooks.on("renderCombatTracker", onRenderCombatTracker);
 Hooks.on("renderTokenHUD", onRenderTokenHUD);

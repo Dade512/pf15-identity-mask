@@ -19,12 +19,27 @@
       "AliasHint": "What players see in the combat tracker while this creature is masked. Maximum 64 characters. Leave empty and save, or press Clear, to remove the mask.",
       "Save": "Save",
       "Clear": "Clear",
-      "Cancel": "Cancel"
+      "Cancel": "Cancel",
+      "IdLegend": "Identification (manual record)",
+      "IdStatus": "Status",
+      "IdSkill": "Skill",
+      "IdTotal": "Roll Total",
+      "IdDc": "DC",
+      "IdNote": "Public Note",
+      "IdNone": "— none recorded —",
+      "IdPlayerReadable": "Caution: this entire identification record (status, skill, total, DC, roller, timestamp, note) is technically readable by player clients. Recording it never reveals the name — reveal stays a separate manual action."
+    },
+    "IdStatus": {
+      "unidentified": "Unidentified",
+      "partial": "Partial",
+      "identified": "Identified"
     },
     "Warn": {
       "GmOnly": "Only a GM may change identity masks.",
       "SaveFailed": "Failed to save identity-mask state. See the console for details.",
-      "NoToken": "This combatant has no scene token and cannot be masked."
+      "NoToken": "This combatant has no scene token and cannot be masked.",
+      "BadIdentification": "Invalid identification data; nothing was saved.",
+      "MigrationMalformed": "Identity-mask registry migration excluded {count} malformed entries (see console)."
     }
   }
 }

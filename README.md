@@ -7,8 +7,12 @@ A GM gives any combatant a **public alias** — `Hunched Figure`, `Pale Thing`, 
 Spellcaster` — and players see only that alias in the combat tracker until the GM reveals the
 truth. The real Actor and Token names are never changed.
 
-Version **0.3.1** · Croaker's Ledger visual language · reusable infrastructure (not
+Version **0.4.0** · Croaker's Ledger visual language · reusable infrastructure (not
 campaign-specific).
+
+> **Updating to 0.4.0**: the registry storage format changed. Restart the world and have
+> **every connected client reload — especially GM clients — before using any mask controls.**
+> A stale GM client could otherwise write the old format over the migrated registry.
 
 ---
 
@@ -52,9 +56,14 @@ What this module guarantees:
   (in-character speech, PF1 initiative and skill cards); reveal/conceal retroactively updates
   the existing chat log. Message *content* and third-party chat decorations are not masked.
 - The module **adds zero additional true-name exposure**: the registry setting stores only
-  `{alias, revealed}` (never the true name), and module-created DOM contains no true name in
-  tooltips, titles, ARIA attributes, alt text, hidden text, comments, data attributes, or
-  debug output.
+  `{alias, revealed, identification?}` (never the true name), and module-created DOM contains
+  no true name in tooltips, titles, ARIA attributes, alt text, hidden text, comments, data
+  attributes, or debug output.
+- Since 0.4.0: the GM can record a manual **identification** entry (status, skill, roll
+  total, DC, public note). **The entire identification record is technically readable by
+  player clients** via the replicated setting — status, totals, DC, roller, timestamp, and
+  note included. Never put secrets in it. Recording identification never reveals the name;
+  reveal remains a separate manual GM action.
 
 Out of scope (unchanged by this module): targeting UI, the actor directory, journal content,
 token tooltips, message content/flavor, and third-party chat decorations.
@@ -91,7 +100,7 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 - Full rationale, evidence, and the visibility/permission matrices:
   [`docs/specs/identity-mask/identity-mask.spec.md`](docs/specs/identity-mask/identity-mask.spec.md).
 
-## Known limitations (0.3.1)
+## Known limitations (0.4.0)
 
 - Presentation-layer only (see Security above).
 - Targeting UI, actor directory, journal content, and third-party chat decorations still show
@@ -103,5 +112,5 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 
 ## Future possibilities (roadmap: `docs/specs/identity-mask/ROADMAP.md`)
 
-0.4.0 manual identification workflow · later: roll-assisted identification ·
-actor-directory masking · registry purge tool · alias suggestion tables.
+Roll-assisted identification (prerequisites in the roadmap) · actor-directory masking ·
+registry purge tool · alias suggestion tables.

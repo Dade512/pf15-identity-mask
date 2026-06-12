@@ -74,6 +74,32 @@
   outline-offset: 1px;
 }
 
+/* Identification tag: brass for PARTIAL, blood-filled for IDENTIFIED. */
+.pf15im-id-tag[data-pf15im-id="identified"] {
+  border-color: var(--baph-blood, #6e2a22);
+  background: var(--baph-blood, #6e2a22);
+}
+
+/* Editor identification fieldset */
+.pf15im-editor fieldset.pf15im-editor-id {
+  border: 1px solid var(--baph-leather, #8a7b66);
+  border-radius: 2px;
+}
+
+.pf15im-editor fieldset.pf15im-editor-id legend {
+  font-family: "Courier Prime", "Courier New", monospace;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--baph-ink-faded, #5e5246);
+}
+
+.pf15im-editor .pf15im-editor-id-warning {
+  font-family: "Alegreya", "Georgia", serif;
+  font-size: 0.78rem;
+  color: var(--baph-blood, #6e2a22);
+}
+
 /* ---------------------------------------------------------------------- */
 /* Token HUD controls                                                      */
 /* ---------------------------------------------------------------------- */
