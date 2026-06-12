@@ -7,7 +7,7 @@ A GM gives any combatant a **public alias** — `Hunched Figure`, `Pale Thing`, 
 Spellcaster` — and players see only that alias in the combat tracker until the GM reveals the
 truth. The real Actor and Token names are never changed.
 
-Version **0.3.0** · Croaker's Ledger visual language · reusable infrastructure (not
+Version **0.3.1** · Croaker's Ledger visual language · reusable infrastructure (not
 campaign-specific).
 
 ---
@@ -56,8 +56,8 @@ What this module guarantees:
   tooltips, titles, ARIA attributes, alt text, hidden text, comments, data attributes, or
   debug output.
 
-Out of scope (unchanged by this module as of 0.2.0): chat messages, targeting UI, the actor
-directory, journal content, token tooltips and third-party hover overlays.
+Out of scope (unchanged by this module): targeting UI, the actor directory, journal content,
+token tooltips, message content/flavor, and third-party chat decorations.
 
 ## Safe alias handling
 
@@ -85,20 +85,23 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
   `"<sceneId>:<tokenId>" → {alias, revealed}`.
 - Masking: `renderCombatTracker` hook (ApplicationV2, native `HTMLElement`), DOM mutation of
   fresh per-render nodes — idempotent by construction.
-- Sync: the world setting's `onChange` runs on every client on every change and re-renders the
-  tracker (popout included). No custom socket.
+- Sync: the world setting's `onChange` runs on every client on every change, re-renders the
+  tracker (popout included), sweeps posted chat messages via `ChatLog#updateMessage`, and
+  refreshes canvas nameplates via `renderFlags`. No custom socket.
 - Full rationale, evidence, and the visibility/permission matrices:
   [`docs/specs/identity-mask/identity-mask.spec.md`](docs/specs/identity-mask/identity-mask.spec.md).
 
-## Known limitations (0.2.0)
+## Known limitations (0.3.1)
 
 - Presentation-layer only (see Security above).
-- Chat messages, targeting UI, and other ancillary surfaces still show true names (0.3.0 scope).
+- Targeting UI, actor directory, journal content, and third-party chat decorations still show
+  true names (out of scope; see Security section).
+- Message *content* and PF1 card inner target lines are not masked (fail-open by design).
 - Registry entries for since-deleted tokens linger harmlessly; a purge tool is deferred.
 - Assistant GMs share mask authority (they hold `SETTINGS_MODIFY` by default).
 - English localization only.
 
 ## Future possibilities (roadmap: `docs/specs/identity-mask/ROADMAP.md`)
 
-0.3.0 chat/targeting surface coverage · 0.4.0 manual identification workflow · later
-roll-assisted identification · actor-directory masking · purge tool · alias suggestion tables.
+0.4.0 manual identification workflow · later: roll-assisted identification ·
+actor-directory masking · registry purge tool · alias suggestion tables.

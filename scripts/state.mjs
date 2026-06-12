@@ -36,27 +36,54 @@ export function registerSettings() {
     config: false,
     type: Object,
     default: {},
-    onChange: () => {
-      // AbstractSidebarTab#render also renders the popout instances.
-      ui.combat?.render();
-      // Already-rendered chat messages: ChatLog#render does not rebuild
-      // posted message elements, so re-render each one with a token speaker
-      // via the public ChatLog#updateMessage. Lazily-rendered scrollback
-      // goes through renderChatMessageHTML fresh and needs no sweep.
-      for ( const log of [ui.chat, ui.chat?.popout] ) {
-        if ( !log?.rendered ) continue;
-        for ( const li of log.element.querySelectorAll(".message[data-message-id]") ) {
-          const message = game.messages.get(li.dataset.messageId);
-          if ( message?.speaker?.token ) log.updateMessage(message);
-        }
-      }
-      // Nameplates: text-only refresh of the viewed canvas. Tokens on other
-      // scenes re-mask through the drawToken hook when their scene draws.
-      for ( const token of canvas?.tokens?.placeables ?? [] ) {
-        token.renderFlags.set({ refreshNameplate: true });
+    onChange: () => { syncTracker(); syncChat(); syncNameplates(); }
+  });
+}
+
+/**
+ * Sync the combat tracker on registry change.
+ * AbstractSidebarTab#render also renders the popout instances.
+ */
+function syncTracker() {
+  try { ui.combat?.render(); }
+  catch(err) { console.error(`${MODULE_ID} | registry onChange: tracker sync failed`, err); }
+}
+
+/**
+ * Re-render already-posted chat messages that carry a token speaker.
+ * ChatLog#render does not rebuild posted message elements, so each is
+ * re-rendered individually via the public ChatLog#updateMessage.
+ * Lazily-rendered scrollback goes through renderChatMessageHTML fresh.
+ * Per-message try/catch so one bad message cannot abort the sweep or
+ * the nameplate refresh that follows.
+ */
+function syncChat() {
+  try {
+    for ( const log of [ui.chat, ui.chat?.popout] ) {
+      if ( !log?.rendered ) continue;
+      for ( const li of log.element.querySelectorAll(".message[data-message-id]") ) {
+        const message = game.messages.get(li.dataset.messageId);
+        if ( !message?.speaker?.token ) continue;
+        try { log.updateMessage(message); }
+        catch(err) { console.error(`${MODULE_ID} | registry onChange: message update failed`, err); }
       }
     }
-  });
+  }
+  catch(err) { console.error(`${MODULE_ID} | registry onChange: chat sync failed`, err); }
+}
+
+/**
+ * Request a text-only nameplate refresh for all placeables on the viewed
+ * canvas. Tokens on other scenes re-mask through drawToken when their
+ * scene renders.
+ */
+function syncNameplates() {
+  try {
+    for ( const token of canvas?.tokens?.placeables ?? [] ) {
+      token.renderFlags.set({ refreshNameplate: true });
+    }
+  }
+  catch(err) { console.error(`${MODULE_ID} | registry onChange: nameplate sync failed`, err); }
 }
 
 /**

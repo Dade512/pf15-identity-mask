@@ -1,6 +1,6 @@
-# pf15-identity-mask — Canonical Specification (v0.2.0)
+# pf15-identity-mask — Canonical Specification (v0.3.0 implemented / 0.4.0 next target)
 
-Status: **ACTIVE — 0.2.0 implementation target** (0.1.0 sections retained; §14 adds 0.2.0).
+Status: **v0.3.0 implemented and verified** (§§1–15 complete; §16 reserved for 0.4.0).
 Roadmap: `ROADMAP.md` (approved 2026-06-12).
 Target: Foundry VTT `v13.350+` (verified against installed `13.350.0`), system `pf1` (verified against installed `11.11`).
 Module ID: `pf15-identity-mask`. This Markdown document is canonical; any HTML review artifact is derivative.
@@ -202,7 +202,14 @@ pf15-identity-mask/
 | Tracker `img[alt]` | true name | **alias** | true name | true name | true name |
 | Module alias line | alias + state marker | absent | alias + "revealed" marker | absent | absent |
 | Mask edit / reveal controls | visible | absent | visible | absent | edit only |
-| Token nameplate, chat, actor directory, canvas | unchanged — **out of scope** | unchanged | unchanged | unchanged | unchanged |
+| Canvas nameplate | true name (plain) | **alias** | true name | true name | true name |
+| Canvas nameplate visibility | core | core | core | core | core |
+| Chat `.message-sender` | true name | **alias** | true name | true name | true name |
+| Chat message content/flavor | unchanged | unchanged | unchanged | unchanged | unchanged |
+| Token HUD mask/reveal controls | visible | absent | visible | absent | edit only |
+| Targeting UI, actor directory, other | unchanged — out of scope | unchanged | unchanged | unchanged | unchanged |
+
+See §14 (canvas nameplate detail) and §15 (chat sender detail) for evidence and acceptance criteria.
 
 ---
 
@@ -294,9 +301,9 @@ synchronization, module-created leak check.
 
 ## 12. Deferred features
 
-Pre-combat token-level alias editor (Token HUD/config), registry purge tool for orphaned keys,
-chat-card and nameplate masking, automatic Knowledge-check reveal, alias suggestion tables,
-per-player reveal, localization beyond `en`.
+Registry purge tool for orphaned keys, automatic Knowledge-check reveal, alias suggestion
+tables, per-player reveal, actor-directory masking, targeting-UI masking, localization beyond
+`en`. Manual identification workflow is the 0.4.0 target (see ROADMAP.md).
 
 ## 13. Migration concerns
 

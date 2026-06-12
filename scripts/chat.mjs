@@ -35,6 +35,23 @@ export function onRenderChatMessageHTML(message, html) {
   }
   if ( !entry || entry.revealed ) return;
   for ( const sender of html.querySelectorAll(".message-sender") ) {
-    sender.textContent = entry.alias;
+    replaceTextNodes(sender, entry.alias);
+  }
+}
+
+/**
+ * Replace only text-node content inside `el`, preserving child elements
+ * (icons, links) added by other modules. The first non-empty text node
+ * receives `text`; any further non-empty text nodes are blanked.
+ * @param {Element} el
+ * @param {string} text
+ */
+function replaceTextNodes(el, text) {
+  let first = true;
+  for ( const node of el.childNodes ) {
+    if ( node.nodeType !== Node.TEXT_NODE ) continue;
+    if ( !node.textContent.trim() ) continue;
+    node.textContent = first ? text : "";
+    first = false;
   }
 }
