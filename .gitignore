@@ -3,3 +3,6 @@ desktop.ini
 
 # macOS
 .DS_Store
+
+# Dev-only docs (stay local, not for distribution)
+docs/

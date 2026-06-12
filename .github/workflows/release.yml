@@ -1,0 +1,38 @@
+name: Build and Release Module
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: tag
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build module zip
+        run: |
+          mkdir -p build/pf15-identity-mask/scripts build/pf15-identity-mask/styles build/pf15-identity-mask/lang
+          cp module.json build/pf15-identity-mask/
+          cp scripts/*.mjs build/pf15-identity-mask/scripts/
+          cp styles/*.css build/pf15-identity-mask/styles/
+          cp lang/*.json build/pf15-identity-mask/lang/
+          [ -f README.md ] && cp README.md build/pf15-identity-mask/
+          cd build && zip -r ../pf15-identity-mask.zip pf15-identity-mask/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.tag.outputs.version }}
+          body: |
+            See [README](https://github.com/Dade512/pf15-identity-mask/blob/main/README.md) for full changelog.
+          files: |
+            pf15-identity-mask.zip
+            module.json
