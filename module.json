@@ -1,0 +1,39 @@
+{
+  "id": "pf15-identity-mask",
+  "title": "PF1.5 Identity Mask",
+  "description": "Combat-tracker identity masking: conceal a creature's true name behind a GM-set public alias until the table earns the reveal. Presentation-layer masking with server-authoritative GM-only control, styled in the Croaker's Ledger visual language.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "13.350",
+    "verified": "13.350"
+  },
+  "authors": [
+    {
+      "name": "Dade512"
+    }
+  ],
+  "esmodules": [
+    "scripts/main.mjs"
+  ],
+  "styles": [
+    "styles/identity-mask.css"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "relationships": {
+    "systems": [
+      {
+        "id": "pf1",
+        "type": "system",
+        "compatibility": {}
+      }
+    ]
+  },
+  "manifest": "https://raw.githubusercontent.com/Dade512/pf15-identity-mask/main/module.json",
+  "download": "https://github.com/Dade512/pf15-identity-mask/archive/refs/heads/main.zip"
+}

@@ -1,0 +1,30 @@
+{
+  "PF15IM": {
+    "Settings": {
+      "Registry": {
+        "Name": "Identity Mask Registry",
+        "Hint": "Internal storage for combat-tracker aliases and reveal states. Managed through the tracker controls; not edited directly."
+      }
+    },
+    "Tracker": {
+      "EditAlias": "Edit identity mask",
+      "Reveal": "Reveal true identity",
+      "Conceal": "Conceal identity",
+      "Masked": "MASKED",
+      "Revealed": "REVEALED"
+    },
+    "Editor": {
+      "Title": "Identity Mask",
+      "AliasLabel": "Public Alias",
+      "AliasHint": "What players see in the combat tracker while this creature is masked. Maximum 64 characters. Leave empty and save, or press Clear, to remove the mask.",
+      "Save": "Save",
+      "Clear": "Clear",
+      "Cancel": "Cancel"
+    },
+    "Warn": {
+      "GmOnly": "Only a GM may change identity masks.",
+      "SaveFailed": "Failed to save identity-mask state. See the console for details.",
+      "NoToken": "This combatant has no scene token and cannot be masked."
+    }
+  }
+}

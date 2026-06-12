@@ -1,0 +1,141 @@
+/* pf15-identity-mask — Croaker's Ledger styling.
+ *
+ * Every selector is scoped to a module-owned .pf15im-* class; nothing here
+ * targets core or other-module markup on its own. Fonts use locally
+ * available families with robust system fallbacks — no bundled or remote
+ * font assets, matching sibling-module convention.
+ *
+ * Palette (Croaker's Ledger):
+ *   muddy parchment #d1c6b4 · aged parchment #beb09b · scuffed leather #8a7b66
+ *   iron-gall ink #2a231d · faded ink #5e5246
+ *   tarnished brass #9e7d43 · dried blood #6e2a22
+ */
+
+/* ---------------------------------------------------------------------- */
+/* Tracker row: GM alias status line                                       */
+/* ---------------------------------------------------------------------- */
+
+.pf15im-alias {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  min-height: 1.2em;
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  color: var(--baph-brass, #9e7d43);
+}
+
+.pf15im-alias > i {
+  font-size: 0.7rem;
+  color: var(--baph-brass, #9e7d43);
+}
+
+/* State tag: text marker so reveal state never relies on color alone. */
+.pf15im-alias-state {
+  font-family: "Courier Prime", "Courier New", monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  padding: 0 0.3em;
+  border: 1px solid var(--baph-brass, #9e7d43);
+  border-radius: 2px;
+  color: var(--baph-parchment-aged, #beb09b);
+}
+
+.pf15im-alias[data-pf15im-state="revealed"] {
+  color: var(--baph-parchment-aged, #beb09b);
+}
+
+.pf15im-alias[data-pf15im-state="revealed"] .pf15im-alias-state {
+  border-color: var(--baph-blood, #6e2a22);
+  color: var(--baph-parchment-aged, #beb09b);
+  background: var(--baph-blood, #6e2a22);
+}
+
+.pf15im-alias-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Tracker row controls                                                    */
+/* ---------------------------------------------------------------------- */
+
+/* #8a3a2e is dried blood (#6e2a22) lightened one step: the true accent is
+ * unreadable against Foundry's dark sidebar at icon size. Documented here
+ * per the no-arbitrary-hex rule. */
+.pf15im-control[data-pf15im-state="revealed"] {
+  color: var(--baph-blood-bright, #8a3a2e);
+}
+
+.pf15im-control:focus-visible {
+  outline: 2px solid var(--baph-brass, #9e7d43);
+  outline-offset: 1px;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Alias editor dialog — battered-ledger surface                           */
+/* ---------------------------------------------------------------------- */
+
+.pf15im-editor .window-content {
+  background: var(--baph-parchment, #d1c6b4);
+  color: var(--baph-ink, #2a231d);
+}
+
+.pf15im-editor .pf15im-editor-group label {
+  font-family: "Courier Prime", "Courier New", monospace;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  color: var(--baph-ink, #2a231d);
+}
+
+.pf15im-editor .pf15im-editor-group input[name="alias"] {
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 0.95rem;
+  color: var(--baph-ink, #2a231d);
+  background: var(--baph-parchment-aged, #beb09b);
+  border: 1px solid var(--baph-leather, #8a7b66);
+  border-radius: 2px;
+  min-height: 2em;
+}
+
+.pf15im-editor .pf15im-editor-group input[name="alias"]:focus {
+  outline: 2px solid var(--baph-brass, #9e7d43);
+  outline-offset: 0;
+  box-shadow: none;
+}
+
+.pf15im-editor .pf15im-editor-group .hint {
+  font-family: "Alegreya", "Georgia", serif;
+  font-size: 0.8rem;
+  color: var(--baph-ink-faded, #5e5246);
+}
+
+.pf15im-editor .form-footer button {
+  font-family: "Courier Prime", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.8rem;
+  background: var(--baph-parchment-aged, #beb09b);
+  color: var(--baph-ink, #2a231d);
+  border: 1px solid var(--baph-leather, #8a7b66);
+  border-radius: 2px;
+}
+
+.pf15im-editor .form-footer button:hover,
+.pf15im-editor .form-footer button:focus-visible {
+  background: var(--baph-leather, #8a7b66);
+  color: var(--baph-parchment, #d1c6b4);
+  outline: 2px solid var(--baph-brass, #9e7d43);
+  outline-offset: 0;
+}
+
+.pf15im-editor .form-footer button[data-action="clear"]:hover,
+.pf15im-editor .form-footer button[data-action="clear"]:focus-visible {
+  background: var(--baph-blood, #6e2a22);
+  border-color: var(--baph-blood, #6e2a22);
+  color: var(--baph-parchment, #d1c6b4);
+}
