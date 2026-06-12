@@ -1,13 +1,59 @@
 # WORK-IN-PROGRESS — pf15-identity-mask
 
-Last checkpoint: 2026-06-12 — **0.2.0 CLOSEOUT VERIFIED** (independent review complete;
-architecture, static, and two-client runtime all PASS; see §9-14 of 0.2.0 verify report).
-Awaiting Michael's approval to commit/push/tag `v0.2.0`; NO commit/push/tag made.
+Last checkpoint: 2026-06-12 — **0.2.0 RELEASED** (Michael approved remotely; Fable executed):
+commit `88aa89a` pushed to `origin/main`, tags `v0.1.0` (45289c9, retroactive for the existing
+0.1.0 commit) and `v0.2.0` (88aa89a) pushed and verified via ls-remote. GitHub Release
+creation NOT done (separate step per ROADMAP).
+
+Git note: pushes on this machine hang if Git Credential Manager engages (hidden GUI prompt);
+use `git -c credential.helper= push ...` — the PAT embedded in the remote URL then works.
+SECURITY: that PAT is stored in plaintext in `.git/config` and surfaced in session logs —
+Michael should rotate it when convenient.
 
 ## Current phase
 
-Done with 0.2.0. Next milestone (0.3.0) not started — begins with the scope-gated leak census
-per `docs/specs/identity-mask/ROADMAP.md`.
+0.3.0 — **RUNTIME VERIFIED two-client (2026-06-12)** + Michael's independent manual
+confirmation of masking/reveal. One fix landed during verification: ChatLog#render does NOT
+rebuild posted message elements, so the registry onChange now sweeps rendered messages via
+the public `ChatLog#updateMessage` (state.mjs; SOURCE VERIFIED chat.mjs:1206-1214) — verified
+live: GM conceal flipped the player's already-posted senders back to the alias with no reload,
+zero leaks; fresh loads render reveal state correctly; both directions share the same path.
+Census attack-card item RESOLVED: Michael manually confirmed (DXWarlock seat) that attack
+cards rolled by his masked goblin and the tracker both show "Shadowy Figure". Remaining
+sub-case (player attacking a masked TARGET — target-name inside the card) was not separately
+observed; fail-open by design, watch in live play. ALL acceptance items closed. Awaiting
+Michael's explicit word to commit/push/tag v0.3.0. Michael's test entry ("Shadowy Figure",
+key 5WCQM12c4ePSXOko:2mgq1ZWcqQiaDC6d) left in the registry untouched.
+
+### 0.3.0 candidate (this session)
+- Census complete + scope frozen: `2026-06-12-identity-mask-0.3.0-census.md`. Spec §15 added.
+- New `scripts/chat.mjs` — `renderChatMessageHTML(message, html)`: non-GM clients set
+  `.message-sender` textContent to the alias when `speaker.scene+token` resolve to a masked
+  entry. Defensive guards; content/flavor untouched; fail open elsewhere.
+- `state.mjs` onChange now also `ui.chat?.render()` (retroactive re-mask/unmask).
+- `main.mjs` registers the hook; `module.json` → 0.3.0; README ledger updated.
+- Static gates: 8/8 syntax, JSON valid, guardrails clean.
+
+### Runtime tests still required (spec §15 acceptance)
+1. Player sees alias as sender on IC message + PF1 initiative + skill cards; GM sees true name.
+2. Reveal/conceal retroactively updates existing player chat log (no reload).
+3. No-alias/revealed messages identical to core; chat scroll fine; hostile alias inert.
+4. MANUAL: PF1 attack card vs masked target (automated flow produced no card).
+5. 0.1.0/0.2.0 regression sweep.
+
+### 0.3.0 frozen scope
+- Mask chat sender display (`.message-sender`) via `renderChatMessageHTML(message, html)`
+  when `speaker.scene + speaker.token` resolve to a masked entry (key finding: PF1 fills
+  speaker.token/scene even on actor-alias skill cards — existing resolver suffices).
+- Re-render chat log on registry onChange (verify `ui.chat.render()` + popout at impl recon).
+- MANUAL TEST REQUIRED: PF1 attack card vs masked target (automated player attack flow
+  produced no card; retest manually).
+- Fail-open/unsupported: message content, PF1 card target lines, third-party surfaces,
+  actor-only speakers, GM dialog titles.
+
+### Anomaly flagged for Michael
+Dev world's prior "Round 10" test encounter is gone; round-0 combat `Xv3MFaCSWsVSDpI0`
+("Unknown Participant" ×2) exists, origin unknown, left untouched. See census doc.
 
 ## 0.2.0 deliverables
 

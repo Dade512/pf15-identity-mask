@@ -37,8 +37,19 @@ export function registerSettings() {
     type: Object,
     default: {},
     onChange: () => {
-      // AbstractSidebarTab#render also renders the popout instance.
+      // AbstractSidebarTab#render also renders the popout instances.
       ui.combat?.render();
+      // Already-rendered chat messages: ChatLog#render does not rebuild
+      // posted message elements, so re-render each one with a token speaker
+      // via the public ChatLog#updateMessage. Lazily-rendered scrollback
+      // goes through renderChatMessageHTML fresh and needs no sweep.
+      for ( const log of [ui.chat, ui.chat?.popout] ) {
+        if ( !log?.rendered ) continue;
+        for ( const li of log.element.querySelectorAll(".message[data-message-id]") ) {
+          const message = game.messages.get(li.dataset.messageId);
+          if ( message?.speaker?.token ) log.updateMessage(message);
+        }
+      }
       // Nameplates: text-only refresh of the viewed canvas. Tokens on other
       // scenes re-mask through the drawToken hook when their scene draws.
       for ( const token of canvas?.tokens?.placeables ?? [] ) {

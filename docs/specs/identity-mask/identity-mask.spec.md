@@ -378,3 +378,42 @@ funnel through `drawToken` when their scene renders). Combat-tracker re-render u
 7. No first-paint true-name flash on masked tokens (drawToken pre-masking); observed honestly.
 8. Combatant-less masking: a token never added to combat still masks on canvas.
 9. All 0.1.0 scenarios remain green (regression sweep: A, B, C, D, F, K minimum).
+
+---
+
+## 15. v0.3.0 — Chat sender masking (scope frozen by census)
+
+Census: `docs/reviews/identity-mask/2026-06-12-identity-mask-0.3.0-census.md` (authoritative
+for what is in/out). Summary: the only confirmed player-facing leak beyond 0.2.0 coverage is
+the **chat message sender display** — token-speaker messages, PF1 initiative cards, and PF1
+skill cards all show the true name in `.message-sender`. Key census finding: PF1 fills
+`speaker.token`/`speaker.scene` even on actor-alias cards, so every leaking message resolves
+through the existing `{sceneId, tokenId}` registry key.
+
+### Design
+
+- Hook `renderChatMessageHTML(message, html)` (SOURCE VERIFIED 0.1.0 recon,
+  chat-message.mjs:378/419; html is HTMLElement). For non-GM users, when
+  `{sceneId: message.speaker?.scene, tokenId: message.speaker?.token}` resolves to a masked,
+  unrevealed entry: set every `.message-sender` element's `textContent` to the alias.
+  Defensive: missing speaker fields, deleted docs, absent sender node ⇒ untouched.
+- Retroactive consistency: registry `onChange` additionally re-renders the chat log
+  (`ui.chat?.render()` — AbstractSidebarTab, popout follows; same verified pattern as
+  `ui.combat`). Reveal/conceal therefore re-masks/unmasks already-posted messages.
+- ChatMessage documents are never edited. GM display untouched. Aliases via textContent only.
+- Fail open (documented, out of scope): message content/flavor, PF1 card inner target lines
+  (MANUAL TEST REQUIRED — automated attack flow produced no card), third-party surfaces
+  (monks/chat-portrait/smarttarget/koboldworks), actor-only speakers without token id,
+  GM-side dialog titles.
+
+### Acceptance (0.3.0)
+
+1. Token-speaker message, PF1 initiative card, PF1 skill card: player sees alias as sender;
+   GM sees true name. No content mutation.
+2. Reveal → existing player chat log shows true names without reload; re-conceal restores
+   aliases (retroactive re-render).
+3. No-alias and revealed messages byte-identical to core; chat scroll/functionality intact.
+4. Hostile alias inert in sender line. No module errors in either console.
+5. 0.1.0/0.2.0 regression green (tracker + nameplate + permissions).
+6. Manual: PF1 attack card vs masked target observed in live play; outcome recorded in the
+   census table before tag.

@@ -7,7 +7,7 @@ A GM gives any combatant a **public alias** — `Hunched Figure`, `Pale Thing`, 
 Spellcaster` — and players see only that alias in the combat tracker until the GM reveals the
 truth. The real Actor and Token names are never changed.
 
-Version **0.2.0** · Croaker's Ledger visual language · reusable infrastructure (not
+Version **0.3.0** · Croaker's Ledger visual language · reusable infrastructure (not
 campaign-specific).
 
 ---
@@ -48,6 +48,9 @@ What this module guarantees:
   (name text and token-image alt text — the two places the core template prints the name).
 - Since 0.2.0: the canvas **token nameplate** shows only the alias while masked, across all
   nameplate display modes (visibility rules stay core's).
+- Since 0.3.0: the **chat sender line** shows the alias for messages spoken by a masked token
+  (in-character speech, PF1 initiative and skill cards); reveal/conceal retroactively updates
+  the existing chat log. Message *content* and third-party chat decorations are not masked.
 - The module **adds zero additional true-name exposure**: the registry setting stores only
   `{alias, revealed}` (never the true name), and module-created DOM contains no true name in
   tooltips, titles, ARIA attributes, alt text, hidden text, comments, data attributes, or
