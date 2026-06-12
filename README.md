@@ -7,15 +7,16 @@ A GM gives any combatant a **public alias** — `Hunched Figure`, `Pale Thing`, 
 Spellcaster` — and players see only that alias in the combat tracker until the GM reveals the
 truth. The real Actor and Token names are never changed.
 
-Version **0.1.0** · Croaker's Ledger visual language · reusable infrastructure (not
+Version **0.2.0** · Croaker's Ledger visual language · reusable infrastructure (not
 campaign-specific).
 
 ---
 
 ## What it does
 
-- **Mask**: GM sets an alias per combatant from the tracker row (mask button → editor dialog).
-  Players see the alias in the tracker; the GM sees the true name plus a `MASKED` alias line.
+- **Mask**: GM sets an alias per token — from the combat-tracker row or, since 0.2.0, from the
+  **Token HUD** (right-click a token), with no combat needed. Players see the alias in the
+  tracker **and on the canvas nameplate**; the GM sees the true name plus a `MASKED` alias line.
 - **Reveal**: one click; every connected client's tracker updates immediately. Actor/Token names
   are untouched.
 - **Re-conceal**: the reveal toggle reverses an accidental reveal; players see the alias again.
@@ -45,13 +46,15 @@ What this module guarantees:
 
 - The ordinary player-facing combat-tracker surface shows only the alias while masked
   (name text and token-image alt text — the two places the core template prints the name).
+- Since 0.2.0: the canvas **token nameplate** shows only the alias while masked, across all
+  nameplate display modes (visibility rules stay core's).
 - The module **adds zero additional true-name exposure**: the registry setting stores only
   `{alias, revealed}` (never the true name), and module-created DOM contains no true name in
   tooltips, titles, ARIA attributes, alt text, hidden text, comments, data attributes, or
   debug output.
 
-Out of tracker scope (unchanged by this module): canvas nameplates, chat messages, targeting
-UI, the actor directory, journal content.
+Out of scope (unchanged by this module as of 0.2.0): chat messages, targeting UI, the actor
+directory, journal content, token tooltips and third-party hover overlays.
 
 ## Safe alias handling
 
@@ -63,11 +66,12 @@ as inert text.
 ## Usage
 
 1. Enable the module in a `pf1` world (Foundry v13.350+).
-2. Open the combat tracker as GM. Every combatant with a scene token shows a **mask** button
-   (theater-mask icon) in its row controls.
-3. Click it, type an alias, **Save**. Players now see the alias; you see the true name with a
-   `MASKED` line under it.
-4. Click the **reveal** toggle when the table earns the name. Click it again to re-conceal.
+2. As GM, either right-click a token and use the **mask** button in the Token HUD (works with
+   no combat anywhere), or use the same button on a combat-tracker row.
+3. Type an alias, **Save**. Players now see the alias in the tracker and on the nameplate; you
+   see the true name (plain nameplate, `MASKED` line in the tracker).
+4. Click the **reveal** toggle (HUD or tracker) when the table earns the name. Click again to
+   re-conceal.
 5. **Clear** in the editor (or saving an empty alias) removes the mask entirely.
 
 Combatants without a scene token (rare) cannot be masked and keep core behavior.
@@ -83,16 +87,15 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 - Full rationale, evidence, and the visibility/permission matrices:
   [`docs/specs/identity-mask/identity-mask.spec.md`](docs/specs/identity-mask/identity-mask.spec.md).
 
-## Known limitations (0.1.0)
+## Known limitations (0.2.0)
 
 - Presentation-layer only (see Security above).
-- Aliases are set from tracker rows, so a combat must exist; pre-combat token-level editing is
-  a deferred feature.
+- Chat messages, targeting UI, and other ancillary surfaces still show true names (0.3.0 scope).
 - Registry entries for since-deleted tokens linger harmlessly; a purge tool is deferred.
 - Assistant GMs share mask authority (they hold `SETTINGS_MODIFY` by default).
 - English localization only.
 
-## Future possibilities (explicitly not in 0.1.0)
+## Future possibilities (roadmap: `docs/specs/identity-mask/ROADMAP.md`)
 
-Knowledge-check integration, chat-card and nameplate masking, actor-directory masking,
-per-player reveal, alias suggestion tables, purge tool, token-config alias editing.
+0.3.0 chat/targeting surface coverage · 0.4.0 manual identification workflow · later
+roll-assisted identification · actor-directory masking · purge tool · alias suggestion tables.

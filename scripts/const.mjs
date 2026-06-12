@@ -16,5 +16,6 @@ export const CSS = {
   aliasState: "pf15im-alias-state",
   aliasText: "pf15im-alias-text",
   control: "pf15im-control",
-  editor: "pf15im-editor"
+  editor: "pf15im-editor",
+  hudControl: "pf15im-hud-control"
 };

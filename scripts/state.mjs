@@ -16,6 +16,13 @@
 import { MODULE_ID, SETTING_REGISTRY, MAX_ALIAS_LENGTH } from "./const.mjs";
 
 /**
+ * A mask reference: anything carrying the scene and token ids of a placed
+ * token. Combatant documents already have this shape; TokenDocuments use
+ * refForTokenDocument().
+ * @typedef {{sceneId: string, tokenId: string}} MaskRef
+ */
+
+/**
  * Register the world-scope registry setting. The onChange callback runs on
  * every connected client whenever the Setting document changes
  * (client/documents/setting.mjs _onCreate/_onUpdate), which is the module's
@@ -32,30 +39,48 @@ export function registerSettings() {
     onChange: () => {
       // AbstractSidebarTab#render also renders the popout instance.
       ui.combat?.render();
+      // Nameplates: text-only refresh of the viewed canvas. Tokens on other
+      // scenes re-mask through the drawToken hook when their scene draws.
+      for ( const token of canvas?.tokens?.placeables ?? [] ) {
+        token.renderFlags.set({ refreshNameplate: true });
+      }
     }
   });
 }
 
 /**
- * Derive the registry key for a combatant, or null when the combatant has no
- * scene token (such combatants cannot be masked and degrade to core behavior).
- * @param {Combatant|null|undefined} combatant
+ * Build a MaskRef from a TokenDocument.
+ * @param {TokenDocument|null|undefined} doc
+ * @returns {MaskRef|null}
+ */
+export function refForTokenDocument(doc) {
+  const sceneId = doc?.parent?.id;
+  const tokenId = doc?.id;
+  if ( !sceneId || !tokenId ) return null;
+  return { sceneId, tokenId };
+}
+
+/**
+ * Derive the registry key for a mask reference (Combatant or MaskRef), or
+ * null when it has no scene token (such subjects cannot be masked and
+ * degrade to core behavior).
+ * @param {MaskRef|Combatant|null|undefined} ref
  * @returns {string|null}
  */
-export function getMaskKey(combatant) {
-  const sceneId = combatant?.sceneId;
-  const tokenId = combatant?.tokenId;
+export function getMaskKey(ref) {
+  const sceneId = ref?.sceneId;
+  const tokenId = ref?.tokenId;
   if ( !sceneId || !tokenId ) return null;
   return `${sceneId}:${tokenId}`;
 }
 
 /**
- * Read the mask entry for a combatant.
- * @param {Combatant|null|undefined} combatant
+ * Read the mask entry for a mask reference (Combatant or MaskRef).
+ * @param {MaskRef|Combatant|null|undefined} ref
  * @returns {{alias: string, revealed: boolean}|null}
  */
-export function getMaskEntry(combatant) {
-  const key = getMaskKey(combatant);
+export function getMaskEntry(ref) {
+  const key = getMaskKey(ref);
   if ( !key ) return null;
   const registry = game.settings.get(MODULE_ID, SETTING_REGISTRY) ?? {};
   const entry = registry[key];
@@ -104,20 +129,20 @@ async function updateRegistry(mutate) {
 }
 
 /**
- * Set or replace a combatant's alias. An empty normalized alias clears the
- * mask instead. Reveal state is preserved on edit.
- * @param {Combatant} combatant
+ * Set or replace an alias. An empty normalized alias clears the mask
+ * instead. Reveal state is preserved on edit.
+ * @param {MaskRef|Combatant} ref
  * @param {unknown} rawAlias
  * @returns {Promise<boolean>}
  */
-export async function setAlias(combatant, rawAlias) {
-  const key = getMaskKey(combatant);
+export async function setAlias(ref, rawAlias) {
+  const key = getMaskKey(ref);
   if ( !key ) {
     ui.notifications.warn("PF15IM.Warn.NoToken", { localize: true });
     return false;
   }
   const alias = normalizeAlias(rawAlias);
-  if ( !alias ) return clearAlias(combatant);
+  if ( !alias ) return clearAlias(ref);
   return updateRegistry(registry => {
     const prev = registry[key];
     if ( prev?.alias === alias ) return false;
@@ -127,12 +152,12 @@ export async function setAlias(combatant, rawAlias) {
 }
 
 /**
- * Remove a combatant's mask entry entirely, restoring core behavior.
- * @param {Combatant} combatant
+ * Remove a mask entry entirely, restoring core behavior.
+ * @param {MaskRef|Combatant} ref
  * @returns {Promise<boolean>}
  */
-export async function clearAlias(combatant) {
-  const key = getMaskKey(combatant);
+export async function clearAlias(ref) {
+  const key = getMaskKey(ref);
   if ( !key ) return false;
   return updateRegistry(registry => {
     if ( !(key in registry) ) return false;
@@ -143,12 +168,12 @@ export async function clearAlias(combatant) {
 
 /**
  * Set the reveal state of an existing mask entry.
- * @param {Combatant} combatant
+ * @param {MaskRef|Combatant} ref
  * @param {boolean} revealed
  * @returns {Promise<boolean>}
  */
-export async function setRevealed(combatant, revealed) {
-  const key = getMaskKey(combatant);
+export async function setRevealed(ref, revealed) {
+  const key = getMaskKey(ref);
   if ( !key ) return false;
   return updateRegistry(registry => {
     const entry = registry[key];

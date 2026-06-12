@@ -1,6 +1,7 @@
-# pf15-identity-mask — Canonical Specification (v0.1.0)
+# pf15-identity-mask — Canonical Specification (v0.2.0)
 
-Status: **ACTIVE — MVP implementation target**
+Status: **ACTIVE — 0.2.0 implementation target** (0.1.0 sections retained; §14 adds 0.2.0).
+Roadmap: `ROADMAP.md` (approved 2026-06-12).
 Target: Foundry VTT `v13.350+` (verified against installed `13.350.0`), system `pf1` (verified against installed `11.11`).
 Module ID: `pf15-identity-mask`. This Markdown document is canonical; any HTML review artifact is derivative.
 
@@ -299,6 +300,81 @@ per-player reveal, localization beyond `en`.
 
 ## 13. Migration concerns
 
-Registry schema carries no version field at 0.1.0; if the shape changes, a future version adds
-`_v` and a one-time world-setting migration on `ready` (GM client). Keys are stable Foundry ids;
+Registry schema carries no version field at 0.1.0; the first shape change (planned 0.4.0) moves
+to a registry-level container `{_v: 2, entries: {...}}` with a one-time GM-client migration on
+`ready` (see ROADMAP.md). 0.2.0/0.3.0 must not change the schema. Keys are stable Foundry ids;
 no migration is needed for combat lifecycle events by design.
+
+---
+
+## 14. v0.2.0 — Token HUD controls + canvas nameplate masking
+
+### 14.1 Goal / non-goals
+
+Masking stops being tracker-only: the GM can set/edit/clear/reveal from the Token HUD with no
+combat anywhere, and players stop seeing true names on canvas nameplates. Non-goals (0.2.0):
+token tooltips (elevation only in core — verified not a name surface), hover overlays from
+other modules, chat (0.3.0), token-config tab (rejected — HUD is faster mid-session).
+
+### 14.2 Additional confirmed API surface (installed 13.350.0, 2026-06-12)
+
+| # | Fact | Evidence |
+|---|------|----------|
+| B1 | `TokenHUD extends HandlebarsApplicationMixin(BasePlaceableHUD)`; `BasePlaceableHUD extends ApplicationV2` — TokenHUD **is AppV2** in this install. Project references describing a V1/jQuery TokenHUD are outdated here; installed source controls. | SOURCE VERIFIED — `client/applications/hud/token-hud.mjs:17`, `client/applications/hud/placeable-hud.mjs:15` |
+| B2 | PF1 11.11 sets `CONFIG.Token.hudClass = TokenHUDPF extends TokenHUD`, overriding only `_getStatusEffectChoices`. AppV2 render hooks fire per inheritance chain ⇒ `renderTokenHUD(app, element:HTMLElement, context, options)` fires for TokenHUDPF. | SOURCE VERIFIED — pf1.js + `application.mjs #callHooks` |
+| B3 | HUD template has `.col.left` / `.col.right` columns of `button.control-icon`; `app.document` is the TokenDocument (`document.parent.id` = sceneId). | SOURCE VERIFIED — `templates/hud/token-hud.hbs`, `placeable-hud.mjs` |
+| B4 | `token.nameplate` is a documented public property (PreciseText). Core sets `nameplate.text = document.name` in `_refreshNameplate()` whenever the `refreshNameplate` render flag applies; the flag propagates from `refresh`/`refreshSize` and from document `name`/`displayName` changes. | SOURCE VERIFIED — `canvas/placeables/token.mjs:152-155, 1407-1410, 69-93, 3612` |
+| B5 | Public hook `refreshToken(token, flags)` fires immediately AFTER `_applyRenderFlags`, so overwriting `token.nameplate.text` in the hook directly supersedes core's assignment, using the same public property core writes. | SOURCE VERIFIED — `canvas/placeables/placeable-object.mjs:368` |
+| B6 | Public hook `drawToken(token)` fires after `_draw()` creates the nameplate but **while the placeable is still `visible=false, renderable=false`** — masking here prevents any first-paint true-name flash. | SOURCE VERIFIED — `placeable-object.mjs:421-436` |
+| B7 | `token.renderFlags.set({refreshNameplate: true})` is the public, core-canonical way to request a nameplate refresh (documented property + `RenderFlags#set(changes)`). | SOURCE VERIFIED — `canvas/interaction/render-flags.mjs:94-100, 152-188` |
+| B8 | Nameplate **visibility** is display-mode driven (`nameplate.visible = !isSecret && _canViewMode(document.displayName)`) and independent of text. The module changes text only ⇒ display-mode semantics preserved automatically. | SOURCE VERIFIED — `token.mjs:1263` |
+| B9 | `TokenPF extends Token` with no `_refreshNameplate`/`_getTooltipText` overrides; core token tooltip shows elevation, not name. | SOURCE VERIFIED — pf1.js, `token.mjs:1396-1399` |
+
+No unresolved APIs; no internal/underscore paths required. Stop-condition not triggered.
+
+### 14.3 Design
+
+**Shared resolver (groundwork).** State API generalizes from combatant-shaped to ref-shaped:
+any object with `{sceneId, tokenId}` resolves a mask. Combatants already have those properties;
+TokenDocuments get a tiny adapter (`refForTokenDocument(doc)` → `{sceneId: doc.parent?.id,
+tokenId: doc.id}`). Tracker code is unchanged in behavior.
+
+**HUD controls (GM only).** On `renderTokenHUD`: append to `.col.left` a mask button
+(`button.control-icon`, fa-mask) opening the existing DialogV2 editor via the token ref, plus a
+reveal/conceal toggle (fa-masks-theater / fa-eye) when an entry exists. Fresh part DOM per
+render ⇒ idempotent; listeners use stopPropagation; after a toggle write resolves, the captured
+`app.render()` refreshes the HUD (public AppV2 method). Non-GM clients get no HUD additions.
+
+**Canvas masking (player clients).** Two hooks, one function:
+- `drawToken(token)` → mask immediately after plate creation (pre-first-paint, B6);
+- `refreshToken(token, flags)` → when `flags.refreshNameplate`, re-apply after core resets the
+  text (B5).
+Masking = `token.nameplate.text = alias` when an unrevealed entry exists and user is not GM.
+Unmasked/revealed tokens are never touched (core text already correct). GM canvas plates show
+the **plain true name — no glyph** (decided in roadmap review).
+
+**Sync.** Registry `onChange` additionally requests `renderFlags.set({refreshNameplate: true})`
+for all placeable tokens on the viewed canvas (cheap text-only refresh; tokens on other scenes
+funnel through `drawToken` when their scene renders). Combat-tracker re-render unchanged.
+
+### 14.4 Visibility matrix additions
+
+| Surface | Masked, GM | Masked, Player | Revealed, Player | No alias |
+|---|---|---|---|---|
+| Canvas nameplate text | true name (plain) | **alias** | true name | true name |
+| Nameplate visibility / display modes | core | core | core | core |
+| Token HUD mask/reveal controls | visible | absent | visible | edit only |
+| Token tooltip (elevation) | core — not a name surface | core | core | core |
+
+### 14.5 Acceptance criteria (0.2.0)
+
+1. HUD set/edit/clear/reveal round-trip on a token with **no combat in the world**.
+2. Player nameplate shows alias across the display-mode × ownership matrix (NONE/HOVER/ALWAYS
+   × owner/non-owner — explicit runtime grid).
+3. Reveal/conceal propagates to player canvas live; tracker and canvas always agree.
+4. Hostile alias inert on the nameplate (PIXI text node — no DOM, but verify literal rendering).
+5. No TokenDocument/Actor mutation; registry shape unchanged (v1 flat map).
+6. Unmasked tokens behave identically to core (text, visibility, modes).
+7. No first-paint true-name flash on masked tokens (drawToken pre-masking); observed honestly.
+8. Combatant-less masking: a token never added to combat still masks on canvas.
+9. All 0.1.0 scenarios remain green (regression sweep: A, B, C, D, F, K minimum).

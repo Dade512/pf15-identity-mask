@@ -75,6 +75,20 @@
 }
 
 /* ---------------------------------------------------------------------- */
+/* Token HUD controls                                                      */
+/* ---------------------------------------------------------------------- */
+
+/* Inherits core .control-icon sizing; only state color and focus added. */
+.pf15im-hud-control[data-pf15im-state="revealed"] {
+  color: var(--baph-blood-bright, #8a3a2e);
+}
+
+.pf15im-hud-control:focus-visible {
+  outline: 2px solid var(--baph-brass, #9e7d43);
+  outline-offset: 1px;
+}
+
+/* ---------------------------------------------------------------------- */
 /* Alias editor dialog — battered-ledger surface                           */
 /* ---------------------------------------------------------------------- */
 

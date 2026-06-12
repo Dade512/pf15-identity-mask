@@ -11,13 +11,13 @@ import { CSS, MAX_ALIAS_LENGTH } from "./const.mjs";
 import { clearAlias, getMaskEntry, setAlias } from "./state.mjs";
 
 /**
- * Open the alias editor for a combatant. GM only.
- * @param {Combatant} combatant
+ * Open the alias editor for a maskable subject. GM only.
+ * @param {import("./state.mjs").MaskRef|Combatant} ref
  * @returns {Promise<void>}
  */
-export async function openAliasEditor(combatant) {
-  if ( !game.user.isGM || !combatant ) return;
-  const entry = getMaskEntry(combatant);
+export async function openAliasEditor(ref) {
+  if ( !game.user.isGM || !ref ) return;
+  const entry = getMaskEntry(ref);
   const currentAlias = entry?.alias ?? "";
 
   const content = [
@@ -74,6 +74,6 @@ export async function openAliasEditor(combatant) {
   });
 
   if ( !result || typeof result !== "object" ) return;
-  if ( result.action === "clear" ) await clearAlias(combatant);
-  else if ( result.action === "save" ) await setAlias(combatant, result.alias);
+  if ( result.action === "clear" ) await clearAlias(ref);
+  else if ( result.action === "save" ) await setAlias(ref, result.alias);
 }
