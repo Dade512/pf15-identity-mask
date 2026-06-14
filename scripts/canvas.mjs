@@ -16,7 +16,7 @@
  * visibility).
  */
 
-import { getMaskEntry, refForTokenDocument } from "./state.mjs";
+import { getMaskEntry, maskedNameFor, refForTokenDocument } from "./state.mjs";
 
 /**
  * Handle drawToken: mask before the token's first paintable frame.
@@ -37,8 +37,9 @@ export function onRefreshToken(token, flags) {
 }
 
 /**
- * Replace the nameplate text with the alias for non-GM users while masked.
- * Unmasked or revealed tokens are never touched (core text is correct).
+ * Replace the nameplate text with the tier display name (spec 17.3) for
+ * non-GM users. Unmasked or revealed-tier tokens are never touched (core
+ * text is correct).
  * @param {object} token  The Token placeable.
  */
 function maskNameplate(token) {
@@ -53,7 +54,8 @@ function maskNameplate(token) {
     console.error("pf15-identity-mask | Failed to resolve nameplate mask", err);
     return;
   }
-  if ( !entry || entry.revealed ) return;
+  const shown = maskedNameFor(entry);
+  if ( !shown ) return;
   // PIXI text assignment — same property core writes; plain text, no markup.
-  nameplate.text = entry.alias;
+  nameplate.text = shown;
 }

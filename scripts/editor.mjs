@@ -1,48 +1,122 @@
 /**
- * GM alias editor for pf15-identity-mask, built on DialogV2.wait.
+ * GM mask editor for pf15-identity-mask, built on DialogV2.wait.
+ *
+ * Layout per Michael's 2026-06-12 mockup (spec 17.4 amendment):
+ *   Public Alias | Partial Alias
+ *   Skill Used   | DC Needed
+ *   Public Note
+ *   <instructions>
+ *   Identification Rolls (Manual Record): one row per non-GM player
+ *   (Player | Roll Total | Outcome), GM users excluded — GMs see
+ *   everything regardless.
+ *   <caution> <buttons>
  *
  * The dialog content is a static, fully module-owned template using only
- * localized strings from this module's language files. The current alias —
- * untrusted input — is NEVER interpolated into the HTML string; it is
- * assigned to the input's value property in the render callback.
+ * localized strings and machine-generated ids. Untrusted values (aliases,
+ * notes, user NAMES) are NEVER interpolated into the HTML string; they are
+ * assigned to DOM properties (value/textContent) in the render callback.
  */
 
 import { CSS, MAX_ALIAS_LENGTH, MAX_NOTE_LENGTH, ID_STATUSES } from "./const.mjs";
-import { clearAlias, getMaskEntry, setAlias, setIdentification } from "./state.mjs";
+import { clearAlias, getMaskEntry, maskAllForActor, normalizeAlias, sameActorTokens, setAlias, setIdentification, setPartialAlias } from "./state.mjs";
 
 /**
- * Open the alias editor for a maskable subject. GM only.
+ * Users shown in the roll table: every non-GM user, plus any user id that
+ * already carries a roll (e.g. a GM-keyed record carried over by the v2
+ * migration — never hidden).
+ * @param {object} rolls  The entry's current rolls map.
+ * @returns {string[]}  User ids in stable order.
+ */
+function rollTableUserIds(rolls) {
+  const ids = game.users.filter(u => !u.isGM).map(u => u.id);
+  for ( const userId of Object.keys(rolls) ) {
+    if ( !ids.includes(userId) ) ids.push(userId);
+  }
+  return ids;
+}
+
+/**
+ * Open the mask editor for a maskable subject. GM only.
  * @param {import("./state.mjs").MaskRef|Combatant} ref
  * @returns {Promise<void>}
  */
 export async function openAliasEditor(ref) {
   if ( !game.user.isGM || !ref ) return;
   const entry = getMaskEntry(ref);
-  const currentAlias = entry?.alias ?? "";
+  const identification = entry?.identification ?? null;
+  const rolls = identification?.rolls ?? {};
+  const rowUsers = rollTableUserIds(rolls);
+  const canMaskAll = (sameActorTokens(ref)?.length ?? 0) > 0;
 
-  // Static, module-owned markup with localized strings only; untrusted
-  // values (alias, identification fields) are assigned via DOM properties
-  // in the render callback, never interpolated.
+  // Static, module-owned markup: localized strings and machine ids only.
   const skills = globalThis.pf1?.config?.skills ?? {};
   const skillOptions = ['<option value=""></option>']
     .concat(Object.keys(skills).map(k => `<option value="${k}"></option>`)).join("");
-  const statusOptions = ['<option value=""></option>']
+  const outcomeOptions = ['<option value=""></option>']
     .concat(ID_STATUSES.map(s => `<option value="${s}"></option>`)).join("");
+  const rollRows = rowUsers.map(userId => [
+    `<tr data-pf15im-user="${userId}">`,
+    `<td class="${CSS.editor}-id-player"></td>`,
+    `<td><input type="number" name="total-${userId}" step="1"></td>`,
+    `<td><select name="outcome-${userId}">${outcomeOptions}</select></td>`,
+    "</tr>"
+  ].join(""));
+  if ( !rollRows.length ) {
+    rollRows.push(`<tr><td colspan="3" class="${CSS.editor}-id-empty">${game.i18n.localize("PF15IM.Editor.IdNoPlayers")}</td></tr>`);
+  }
   const content = [
+    `<div class="${CSS.editor}-row">`,
     `<div class="form-group ${CSS.editor}-group">`,
     `<label for="pf15im-alias-input">${game.i18n.localize("PF15IM.Editor.AliasLabel")}</label>`,
     `<input type="text" id="pf15im-alias-input" name="alias" maxlength="${MAX_ALIAS_LENGTH}" autocomplete="off" spellcheck="false">`,
-    `<p class="hint">${game.i18n.localize("PF15IM.Editor.AliasHint")}</p>`,
     "</div>",
+    `<div class="form-group ${CSS.editor}-group">`,
+    `<label for="pf15im-partial-input">${game.i18n.localize("PF15IM.Editor.PartialAliasLabel")}</label>`,
+    `<input type="text" id="pf15im-partial-input" name="partialAlias" maxlength="${MAX_ALIAS_LENGTH}" autocomplete="off" spellcheck="false">`,
+    "</div>",
+    "</div>",
+    `<div class="${CSS.editor}-row">`,
+    `<div class="form-group ${CSS.editor}-group">`,
+    `<label>${game.i18n.localize("PF15IM.Editor.SkillUsed")}</label><select name="idSkill">${skillOptions}</select>`,
+    "</div>",
+    `<div class="form-group ${CSS.editor}-group">`,
+    `<label>${game.i18n.localize("PF15IM.Editor.DcNeeded")}</label><input type="number" name="idDc" step="1">`,
+    "</div>",
+    "</div>",
+    `<div class="form-group ${CSS.editor}-group">`,
+    `<label>${game.i18n.localize("PF15IM.Editor.PublicNote")}</label>`,
+    `<input type="text" name="idNote" maxlength="${MAX_NOTE_LENGTH}" autocomplete="off">`,
+    "</div>",
+    `<p class="hint">${game.i18n.localize("PF15IM.Editor.Instructions")}</p>`,
     `<fieldset class="${CSS.editor}-id"><legend>${game.i18n.localize("PF15IM.Editor.IdLegend")}</legend>`,
-    `<div class="form-group"><label>${game.i18n.localize("PF15IM.Editor.IdStatus")}</label><select name="idStatus">${statusOptions}</select></div>`,
-    `<div class="form-group"><label>${game.i18n.localize("PF15IM.Editor.IdSkill")}</label><select name="idSkill">${skillOptions}</select></div>`,
-    `<div class="form-group"><label>${game.i18n.localize("PF15IM.Editor.IdTotal")}</label><input type="number" name="idTotal" step="1">`,
-    `<label>${game.i18n.localize("PF15IM.Editor.IdDc")}</label><input type="number" name="idDc" step="1"></div>`,
-    `<div class="form-group"><label>${game.i18n.localize("PF15IM.Editor.IdNote")}</label><input type="text" name="idNote" maxlength="${MAX_NOTE_LENGTH}" autocomplete="off"></div>`,
-    `<p class="hint ${CSS.editor}-id-warning">${game.i18n.localize("PF15IM.Editor.IdPlayerReadable")}</p>`,
-    "</fieldset>"
+    `<table class="${CSS.editor}-id-table"><thead><tr>`,
+    `<th>${game.i18n.localize("PF15IM.Editor.IdPlayer")}</th>`,
+    `<th>${game.i18n.localize("PF15IM.Editor.IdTotal")}</th>`,
+    `<th>${game.i18n.localize("PF15IM.Editor.IdOutcome")}</th>`,
+    "</tr></thead><tbody>",
+    ...rollRows,
+    "</tbody></table>",
+    "</fieldset>",
+    `<p class="hint ${CSS.editor}-id-warning">${game.i18n.localize("PF15IM.Editor.IdPlayerReadable")}</p>`
   ].join("");
+
+  const collect = button => {
+    const f = button.form?.elements ?? {};
+    const out = {
+      alias: f.alias?.value ?? "",
+      partialAlias: f.partialAlias?.value ?? "",
+      idSkill: f.idSkill?.value || null,
+      idDc: f.idDc?.value ?? null,
+      idNote: f.idNote?.value ?? "",
+      rolls: {}
+    };
+    for ( const userId of rowUsers ) {
+      const outcome = f[`outcome-${userId}`]?.value ?? "";
+      if ( !outcome ) continue;
+      out.rolls[userId] = { total: f[`total-${userId}`]?.value ?? null, outcome };
+    }
+    return out;
+  };
 
   const buttons = [
     {
@@ -50,20 +124,7 @@ export async function openAliasEditor(ref) {
       label: "PF15IM.Editor.Save",
       icon: "fa-solid fa-feather-pointed",
       default: true,
-      callback: (event, button) => {
-        const f = button.form?.elements ?? {};
-        return {
-          action: "save",
-          alias: f.alias?.value ?? "",
-          identification: {
-            status: f.idStatus?.value ?? "",
-            skill: f.idSkill?.value || null,
-            total: f.idTotal?.value ?? null,
-            dc: f.idDc?.value ?? null,
-            publicNote: f.idNote?.value ?? ""
-          }
-        };
-      }
+      callback: (event, button) => ({ action: "save", ...collect(button) })
     },
     {
       action: "cancel",
@@ -80,6 +141,14 @@ export async function openAliasEditor(ref) {
       callback: () => ({ action: "clear" })
     });
   }
+  if ( canMaskAll ) {
+    buttons.splice(1, 0, {
+      action: "maskAll",
+      label: "PF15IM.MaskAll.Button",
+      icon: "fa-solid fa-people-group",
+      callback: (event, button) => ({ action: "maskAll", ...collect(button) })
+    });
+  }
 
   const result = await foundry.applications.api.DialogV2.wait({
     window: {
@@ -87,45 +156,156 @@ export async function openAliasEditor(ref) {
       icon: "fa-solid fa-mask"
     },
     classes: [CSS.editor],
+    // Fixed width: without it, AppV2 auto-sizing lets the roll table
+    // stretch the dialog across the screen and cover the chat sidebar
+    // (position.width is public AppV2 API — application.mjs:81/986).
+    position: { width: 1280 },
     content,
     buttons,
     rejectClose: false,
     render: (event, dialog) => {
-      const input = dialog.element.querySelector("input[name=alias]");
-      if ( input ) {
+      const el = dialog.element;
+      const aliasInput = el.querySelector("input[name=alias]");
+      if ( aliasInput ) {
         // Property assignment, not attribute interpolation: hostile alias
         // text stays inert.
-        input.value = currentAlias;
-        input.focus();
-        input.select();
+        aliasInput.value = entry?.alias ?? "";
+        aliasInput.focus();
+        aliasInput.select();
       }
-      const el = dialog.element;
-      // Localize select labels and seed identification values via DOM.
-      for ( const opt of el.querySelectorAll("select[name=idStatus] option") ) {
-        opt.textContent = opt.value ? game.i18n.localize(`PF15IM.IdStatus.${opt.value}`) : game.i18n.localize("PF15IM.Editor.IdNone");
-      }
-      const skills = globalThis.pf1?.config?.skills ?? {};
+      const partialInput = el.querySelector("input[name=partialAlias]");
+      if ( partialInput ) partialInput.value = entry?.partialAlias ?? "";
+
+      // Localize select labels via DOM (values stay machine keys).
+      const skillCfg = globalThis.pf1?.config?.skills ?? {};
       for ( const opt of el.querySelectorAll("select[name=idSkill] option") ) {
-        opt.textContent = opt.value ? String(skills[opt.value]?.name ?? skills[opt.value] ?? opt.value) : "—";
+        opt.textContent = opt.value ? String(skillCfg[opt.value]?.name ?? skillCfg[opt.value] ?? opt.value) : "—";
       }
-      const id = entry?.identification;
-      if ( id ) {
-        el.querySelector("select[name=idStatus]").value = id.status;
-        el.querySelector("select[name=idSkill]").value = id.skill ?? "";
-        el.querySelector("input[name=idTotal]").value = id.total ?? "";
-        el.querySelector("input[name=idDc]").value = id.dc ?? "";
-        el.querySelector("input[name=idNote]").value = id.publicNote ?? "";
+      for ( const select of el.querySelectorAll(`.${CSS.editor}-id-table select`) ) {
+        for ( const opt of select.options ) {
+          opt.textContent = opt.value ? game.i18n.localize(`PF15IM.IdStatus.${opt.value}`) : game.i18n.localize("PF15IM.Editor.IdNone");
+        }
+      }
+
+      // Seed shared identification fields.
+      el.querySelector("select[name=idSkill]").value = identification?.skill ?? "";
+      el.querySelector("input[name=idDc]").value = identification?.dc ?? "";
+      el.querySelector("input[name=idNote]").value = identification?.publicNote ?? "";
+
+      // Fill player names (untrusted -> textContent) and seed roll rows.
+      for ( const tr of el.querySelectorAll(`.${CSS.editor}-id-table tr[data-pf15im-user]`) ) {
+        const userId = tr.dataset.pf15imUser;
+        tr.querySelector(`.${CSS.editor}-id-player`).textContent = game.users.get(userId)?.name ?? userId;
+        const record = rolls[userId];
+        if ( !record ) continue;
+        tr.querySelector(`input[name="total-${userId}"]`).value = record.total ?? "";
+        tr.querySelector(`select[name="outcome-${userId}"]`).value = record.outcome;
       }
     }
   });
 
   if ( !result || typeof result !== "object" ) return;
   if ( result.action === "clear" ) { await clearAlias(ref); return; }
+  if ( result.action === "maskAll" ) { await openMaskAllDialog(ref, result.alias, result.partialAlias); return; }
   if ( result.action !== "save" ) return;
+
+  // Empty alias = clear the whole entry; nothing further to write.
+  if ( !normalizeAlias(result.alias) ) { await setAlias(ref, result.alias); return; }
   await setAlias(ref, result.alias);
-  // Identification: empty status = clear; otherwise validated write.
-  const idForm = result.identification;
-  if ( !idForm ) return;
-  if ( !idForm.status ) await setIdentification(ref, null);
-  else await setIdentification(ref, { ...idForm, userId: game.user.id });
+  await setPartialAlias(ref, result.partialAlias);
+
+  // Identification container: shared skill/DC/note + per-player rolls,
+  // one write. NEVER touches the display tier (spec 17.4).
+  await setIdentification(ref, {
+    skill: result.idSkill,
+    dc: result.idDc,
+    publicNote: result.idNote,
+    rolls: result.rolls
+  });
+}
+
+/**
+ * Guarded mask-all confirmation (spec 17.5, BINDING guardrails): live
+ * affected-token count, current-scene only, skip-existing unless the
+ * explicit overwrite checkbox is set, numbered-suffix preview — all
+ * BEFORE anything is written. Confirm performs ONE atomic registry write.
+ * @param {import("./state.mjs").MaskRef|Combatant} ref
+ * @param {unknown} rawAlias         Alias text from the editor form.
+ * @param {unknown} rawPartialAlias  Partial alias text from the editor form.
+ * @returns {Promise<void>}
+ */
+async function openMaskAllDialog(ref, rawAlias, rawPartialAlias) {
+  const alias = normalizeAlias(rawAlias);
+  if ( !alias ) {
+    ui.notifications.warn("PF15IM.MaskAll.NeedAlias", { localize: true });
+    return;
+  }
+  const tokens = sameActorTokens(ref);
+  if ( !tokens?.length ) return;
+
+  const content = [
+    `<p class="${CSS.editor}-maskall-count"></p>`,
+    `<div class="form-group"><label class="checkbox"><input type="checkbox" name="overwrite">`,
+    `${game.i18n.localize("PF15IM.MaskAll.Overwrite")}</label></div>`,
+    `<div class="form-group"><label class="checkbox"><input type="checkbox" name="numbered" checked>`,
+    `${game.i18n.localize("PF15IM.MaskAll.Numbered")}</label></div>`,
+    `<p class="hint ${CSS.editor}-maskall-preview"></p>`
+  ].join("");
+
+  const result = await foundry.applications.api.DialogV2.wait({
+    window: {
+      title: "PF15IM.MaskAll.Title",
+      icon: "fa-solid fa-people-group"
+    },
+    classes: [CSS.editor],
+    content,
+    buttons: [
+      {
+        action: "confirm",
+        label: "PF15IM.MaskAll.Confirm",
+        icon: "fa-solid fa-masks-theater",
+        default: true,
+        callback: (event, button) => ({
+          overwrite: button.form?.elements?.overwrite?.checked === true,
+          numbered: button.form?.elements?.numbered?.checked === true
+        })
+      },
+      {
+        action: "cancel",
+        label: "PF15IM.Editor.Cancel",
+        icon: "fa-solid fa-xmark",
+        callback: () => null
+      }
+    ],
+    rejectClose: false,
+    render: (event, dialog) => {
+      const el = dialog.element;
+      const countEl = el.querySelector(`.${CSS.editor}-maskall-count`);
+      const previewEl = el.querySelector(`.${CSS.editor}-maskall-preview`);
+      const overwriteBox = el.querySelector("input[name=overwrite]");
+      const numberedBox = el.querySelector("input[name=numbered]");
+      const update = () => {
+        const overwrite = overwriteBox.checked;
+        const numbered = numberedBox.checked;
+        const targets = tokens.filter(t => overwrite || !getMaskEntry({ sceneId: ref.sceneId, tokenId: t.id }));
+        countEl.textContent = game.i18n.format("PF15IM.MaskAll.Count", { count: targets.length, total: tokens.length });
+        const names = targets.map((t, i) => (numbered && targets.length > 1) ? normalizeAlias(`${alias} ${i + 1}`) : alias);
+        const shown = names.slice(0, 3).join(", ") + ((names.length > 3) ? ", …" : "");
+        previewEl.textContent = names.length ? game.i18n.format("PF15IM.MaskAll.Preview", { names: shown }) : game.i18n.localize("PF15IM.MaskAll.NoTargets");
+      };
+      overwriteBox.addEventListener("change", update);
+      numberedBox.addEventListener("change", update);
+      update();
+    }
+  });
+
+  if ( !result || typeof result !== "object" ) return;
+  const written = await maskAllForActor(ref, {
+    alias: rawAlias,
+    partialAlias: rawPartialAlias,
+    overwrite: result.overwrite,
+    numbered: result.numbered
+  });
+  if ( written ) ui.notifications.info(game.i18n.format("PF15IM.MaskAll.Done", { count: written }));
+  else ui.notifications.warn("PF15IM.MaskAll.NoTargets", { localize: true });
 }

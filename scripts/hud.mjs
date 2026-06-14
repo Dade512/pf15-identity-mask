@@ -11,8 +11,8 @@
  * server-enforced at the Setting layer.
  */
 
-import { CSS } from "./const.mjs";
-import { getMaskEntry, refForTokenDocument, setRevealed } from "./state.mjs";
+import { CSS, TIER_META } from "./const.mjs";
+import { getMaskEntry, refForTokenDocument, setDisplayTier } from "./state.mjs";
 import { openAliasEditor } from "./editor.mjs";
 
 /**
@@ -48,17 +48,19 @@ export function onRenderTokenHUD(app, element) {
   });
   column.appendChild(edit);
 
-  // Reveal / re-conceal toggle, only while a mask exists.
+  // 3-state display-tier cycle toggle (spec 17.3), only while a mask
+  // exists: distinct icon per tier, label naming current and next tier.
   if ( entry ) {
-    const toggle = makeHudButton(
-      entry.revealed ? "fa-eye" : "fa-masks-theater",
-      game.i18n.localize(entry.revealed ? "PF15IM.Tracker.Conceal" : "PF15IM.Tracker.Reveal")
-    );
-    toggle.dataset.pf15imState = entry.revealed ? "revealed" : "masked";
+    const meta = TIER_META[entry.displayTier];
+    const toggle = makeHudButton(meta.toggleIcon, game.i18n.format("PF15IM.Tracker.TierToggle", {
+      tier: game.i18n.localize(`PF15IM.Tier.${entry.displayTier}`),
+      next: game.i18n.localize(`PF15IM.Tier.${meta.next}`)
+    }));
+    toggle.dataset.pf15imState = entry.displayTier;
     toggle.addEventListener("click", async event => {
       event.preventDefault();
       event.stopPropagation();
-      await setRevealed(ref, !entry.revealed);
+      await setDisplayTier(ref, meta.next);
       // Refresh this HUD so the toggle reflects the new state (public AppV2 render).
       app.render();
     });

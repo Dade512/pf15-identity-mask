@@ -7,12 +7,13 @@
  * touches fresh nodes — listeners and labels cannot accumulate across
  * rerenders, and the same code path serves the sidebar tab and the popout.
  *
- * Alias text is untrusted input and is only ever assigned through
- * textContent / the alt property. No HTML string interpolation.
+ * Display text always comes from maskedNameFor() — the shared tier
+ * resolver (spec 17.3). Alias text is untrusted input and is only ever
+ * assigned through textContent / the alt property. No HTML interpolation.
  */
 
-import { CSS } from "./const.mjs";
-import { getMaskEntry, getMaskKey, setRevealed } from "./state.mjs";
+import { CSS, TIER_META } from "./const.mjs";
+import { getMaskEntry, getMaskKey, maskedNameFor, setDisplayTier } from "./state.mjs";
 import { openAliasEditor } from "./editor.mjs";
 
 /**
@@ -39,29 +40,34 @@ export function onRenderCombatTracker(app, element) {
     }
 
     if ( isGM ) decorateGmRow(li, combatant, entry);
-    else if ( entry && !entry.revealed ) maskPlayerRow(li, entry);
+    else {
+      const shown = maskedNameFor(entry);
+      if ( shown ) maskPlayerRow(li, shown);
+    }
   }
 }
 
 /**
- * Replace the player-visible name surfaces with the alias.
+ * Replace the player-visible name surfaces with the tier display name.
  * The core template carries the true name in exactly two places per row:
  * strong.name text and img.token-image[alt].
  * @param {HTMLElement} li
- * @param {{alias: string}} entry
+ * @param {string} shown  The tier-resolved display name.
  */
-function maskPlayerRow(li, entry) {
+function maskPlayerRow(li, shown) {
   const nameEl = li.querySelector(".token-name .name");
-  if ( nameEl ) nameEl.textContent = entry.alias;
+  if ( nameEl ) nameEl.textContent = shown;
   const imgEl = li.querySelector("img.token-image");
-  if ( imgEl ) imgEl.alt = entry.alias;
+  if ( imgEl ) imgEl.alt = shown;
 }
 
 /**
- * GM view: keep the true name, add an alias status line and row controls.
+ * GM view: keep the true name, add a tier status line and row controls.
+ * Per-PC identification data NEVER appears here (spec 17.4) — the
+ * compact tier tag is all; roll detail lives in the editor.
  * @param {HTMLElement} li
  * @param {Combatant} combatant
- * @param {{alias: string, revealed: boolean}|null} entry
+ * @param {import("./state.mjs").MaskEntry|null} entry
  */
 function decorateGmRow(li, combatant, entry) {
   // Combatants without a scene token cannot be masked; leave the row core.
@@ -72,53 +78,32 @@ function decorateGmRow(li, combatant, entry) {
   const controls = li.querySelector(".combatant-controls");
   if ( !tokenName || !nameEl || !controls ) return;
 
-  // Alias status line between the true name and the row controls.
+  // Tier status line between the true name and the row controls: tier
+  // word + what players currently see at that tier.
   if ( entry ) {
+    const meta = TIER_META[entry.displayTier];
     const line = document.createElement("div");
     line.classList.add(CSS.alias);
-    line.dataset.pf15imState = entry.revealed ? "revealed" : "masked";
+    line.dataset.pf15imState = entry.displayTier;
 
     const icon = document.createElement("i");
-    icon.classList.add("fa-solid", entry.revealed ? "fa-eye" : "fa-mask");
+    icon.classList.add("fa-solid", meta.lineIcon);
     icon.setAttribute("aria-hidden", "true");
 
     const state = document.createElement("span");
     state.classList.add(CSS.aliasState);
-    state.textContent = game.i18n.localize(entry.revealed ? "PF15IM.Tracker.Revealed" : "PF15IM.Tracker.Masked");
+    state.textContent = game.i18n.localize(`PF15IM.Tier.${entry.displayTier}`).toUpperCase();
 
     const text = document.createElement("span");
     text.classList.add(CSS.aliasText);
-    text.textContent = entry.alias;
+    text.textContent = maskedNameFor(entry) ?? entry.alias;
 
     line.append(icon, state, text);
-
-    // Compact identification tag (PARTIAL / IDENTIFIED only; detail lives
-    // in the editor — spec 16.3).
-    const idStatus = entry.identification?.status;
-    if ( idStatus && idStatus !== "unidentified" ) {
-      const tag = document.createElement("span");
-      tag.classList.add(CSS.aliasState, "pf15im-id-tag");
-      tag.dataset.pf15imId = idStatus;
-      tag.textContent = game.i18n.localize(`PF15IM.IdStatus.${idStatus}`).toUpperCase();
-      line.append(tag);
-    }
     nameEl.insertAdjacentElement("afterend", line);
   }
 
-  // Reveal / re-conceal toggle, only meaningful while a mask exists.
-  if ( entry ) {
-    const toggle = makeControlButton(
-      entry.revealed ? "fa-eye" : "fa-masks-theater",
-      game.i18n.localize(entry.revealed ? "PF15IM.Tracker.Conceal" : "PF15IM.Tracker.Reveal")
-    );
-    toggle.dataset.pf15imState = entry.revealed ? "revealed" : "masked";
-    toggle.addEventListener("click", event => {
-      event.preventDefault();
-      event.stopPropagation();
-      setRevealed(combatant, !entry.revealed);
-    });
-    controls.prepend(toggle);
-  }
+  // 3-state display-tier cycle toggle, only meaningful while a mask exists.
+  if ( entry ) controls.prepend(makeTierToggle(entry, tier => setDisplayTier(combatant, tier)));
 
   // Mask editor button.
   const edit = makeControlButton("fa-mask", game.i18n.localize("PF15IM.Tracker.EditAlias"));
@@ -128,6 +113,31 @@ function decorateGmRow(li, combatant, entry) {
     openAliasEditor(combatant);
   });
   controls.prepend(edit);
+}
+
+/**
+ * Build the 3-state display-tier cycle button for an entry (spec 17.3):
+ * distinct icon per tier, localized label naming the current tier and
+ * the one a click sets. The HUD mirrors the same semantics with its own
+ * button markup (hud.mjs).
+ * @param {import("./state.mjs").MaskEntry} entry
+ * @param {(tier: string) => void} onCycle  Receives the next tier.
+ * @returns {HTMLButtonElement}
+ */
+function makeTierToggle(entry, onCycle) {
+  const meta = TIER_META[entry.displayTier];
+  const label = game.i18n.format("PF15IM.Tracker.TierToggle", {
+    tier: game.i18n.localize(`PF15IM.Tier.${entry.displayTier}`),
+    next: game.i18n.localize(`PF15IM.Tier.${meta.next}`)
+  });
+  const toggle = makeControlButton(meta.toggleIcon, label);
+  toggle.dataset.pf15imState = entry.displayTier;
+  toggle.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+    onCycle(meta.next);
+  });
+  return toggle;
 }
 
 /**

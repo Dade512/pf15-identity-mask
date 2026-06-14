@@ -2,8 +2,8 @@
  * Chat sender masking for pf15-identity-mask (0.3.0).
  *
  * Census-frozen scope: only the rendered sender display of chat messages
- * whose speaker carries scene+token ids resolving to a masked, unrevealed
- * registry entry. PF1 fills speaker.token/speaker.scene on its cards
+ * whose speaker carries scene+token ids resolving to a registry entry at
+ * the masked or partial tier. PF1 fills speaker.token/speaker.scene on its cards
  * (initiative, skills) as well as token-speaker messages, so the existing
  * registry key covers every confirmed leak.
  *
@@ -13,7 +13,7 @@
  * fail open (see spec section 15).
  */
 
-import { getMaskEntry } from "./state.mjs";
+import { getMaskEntry, maskedNameFor } from "./state.mjs";
 
 /**
  * Handle renderChatMessageHTML.
@@ -33,9 +33,10 @@ export function onRenderChatMessageHTML(message, html) {
     console.error("pf15-identity-mask | Failed to resolve chat mask", err);
     return;
   }
-  if ( !entry || entry.revealed ) return;
+  const shown = maskedNameFor(entry);
+  if ( !shown ) return;
   for ( const sender of html.querySelectorAll(".message-sender") ) {
-    replaceTextNodes(sender, entry.alias);
+    replaceTextNodes(sender, shown);
   }
 }
 

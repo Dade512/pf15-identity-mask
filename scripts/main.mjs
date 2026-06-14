@@ -16,7 +16,7 @@ Hooks.once("init", () => {
   registerSettings();
 });
 
-// One-time v1 -> v2 registry container migration (GM client; idempotent).
+// One-time v1/v2 -> v3 registry container migration (GM client; idempotent).
 Hooks.once("ready", migrateRegistry);
 
 Hooks.on("renderCombatTracker", onRenderCombatTracker);

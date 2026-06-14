@@ -1,8 +1,9 @@
 /**
  * Registry state management for pf15-identity-mask.
  *
- * All mask state lives in ONE world-scope setting: an object map of
- * "<sceneId>:<tokenId>" -> { alias: string, revealed: boolean }.
+ * All mask state lives in ONE world-scope setting: a v3 container
+ * `{_v: 3, entries: {"<sceneId>:<tokenId>": {alias, partialAlias?,
+ * displayTier, identification?}}}` (spec 17.2).
  *
  * World Setting writes require the SETTINGS_MODIFY permission (default
  * ASSISTANT+) and are enforced server-side as document permissions
@@ -10,21 +11,22 @@
  * rejected because actor-owner players may update them server-side
  * (common/documents/combatant.mjs #canUpdate allows "flags").
  *
- * The true name is never stored here — only the alias and reveal state.
+ * The true name is never stored here — only aliases, the display tier,
+ * and identification roll records (ALL player-readable; see spec 17.4).
  */
 
-import { MODULE_ID, SETTING_REGISTRY, MAX_ALIAS_LENGTH, REGISTRY_VERSION, ID_STATUSES, MAX_NOTE_LENGTH } from "./const.mjs";
+import { MODULE_ID, SETTING_REGISTRY, MAX_ALIAS_LENGTH, REGISTRY_VERSION, DISPLAY_TIERS, ID_STATUSES, MAX_NOTE_LENGTH } from "./const.mjs";
 
 /**
- * Normalize either registry shape to its entries map (dual-shape reader,
- * spec 16.1): v2 container `{_v: 2, entries: {...}}` or the legacy v1 flat
- * map. All reads and the write path go through this single function so no
- * render can trip over the migration boundary.
+ * Normalize any known registry shape to its entries map (tri-shape reader,
+ * spec 17.2): v3/v2 containers `{_v, entries}` or the legacy v1 flat map.
+ * All reads and the write path go through this single function so no
+ * render can trip over a migration boundary.
  * @param {object|null|undefined} raw  The raw setting value.
  * @returns {object}  The entries map (never null).
  */
 function readEntries(raw) {
-  if ( raw && (raw._v === REGISTRY_VERSION) ) return raw.entries ?? {};
+  if ( raw && ((raw._v === REGISTRY_VERSION) || (raw._v === 2)) ) return raw.entries ?? {};
   if ( !raw || (typeof raw !== "object") ) return {};
   // Unknown container version (e.g. from a NEWER module build): fail safe.
   // Display treats it as empty; writers refuse entirely (see updateRegistry).
@@ -35,14 +37,15 @@ function readEntries(raw) {
 
 /**
  * True when the stored value is a shape this build may WRITE over:
- * empty, legacy v1 flat, or the current container version. An unexpected
- * `_v` (newer build's data) must never be silently rebuilt.
+ * empty, legacy v1 flat, the v2 container, or the current container
+ * version. An unexpected `_v` (newer build's data) must never be
+ * silently rebuilt.
  * @param {object|null|undefined} raw
  * @returns {boolean}
  */
 function isWritableContainer(raw) {
   if ( !raw || (typeof raw !== "object") ) return true;
-  return (raw._v === undefined) || (raw._v === REGISTRY_VERSION);
+  return (raw._v === undefined) || (raw._v === 2) || (raw._v === REGISTRY_VERSION);
 }
 
 /**
@@ -50,6 +53,13 @@ function isWritableContainer(raw) {
  * token. Combatant documents already have this shape; TokenDocuments use
  * refForTokenDocument().
  * @typedef {{sceneId: string, tokenId: string}} MaskRef
+ */
+
+/**
+ * A normalized mask entry as returned by getMaskEntry().
+ * @typedef {{alias: string, partialAlias: string|null,
+ *   displayTier: "masked"|"partial"|"revealed",
+ *   identification?: object}} MaskEntry
  */
 
 /**
@@ -143,87 +153,208 @@ export function getMaskKey(ref) {
 }
 
 /**
- * Read the mask entry for a mask reference (Combatant or MaskRef).
+ * Read the normalized mask entry for a mask reference.
  * @param {MaskRef|Combatant|null|undefined} ref
- * @returns {{alias: string, revealed: boolean}|null}
+ * @returns {MaskEntry|null}
  */
 export function getMaskEntry(ref) {
   const key = getMaskKey(ref);
   if ( !key ) return null;
   const entries = readEntries(game.settings.get(MODULE_ID, SETTING_REGISTRY));
-  const entry = entries[key];
+  return normalizeEntry(entries[key]);
+}
+
+/**
+ * Normalize a stored entry of any known shape (v1/v2 `revealed` boolean,
+ * v2 single identification object, or v3) into the v3 in-memory shape.
+ * Fail-safe rules (spec 17.2): a missing displayTier derives from
+ * `revealed`; an INVALID displayTier falls back to "masked" — display
+ * failure never shows the true name.
+ * @param {object|null|undefined} entry
+ * @returns {MaskEntry|null}
+ */
+function normalizeEntry(entry) {
   if ( !entry || (typeof entry.alias !== "string") ) return null;
   const alias = normalizeAlias(entry.alias);
   if ( !alias ) return null;
-  const out = { alias, revealed: entry.revealed === true };
-  if ( entry.identification ) {
-    const id = validateIdentification(entry.identification);
-    if ( id ) out.identification = id;
-  }
+  let displayTier;
+  if ( DISPLAY_TIERS.includes(entry.displayTier) ) displayTier = entry.displayTier;
+  else if ( entry.displayTier === undefined ) displayTier = (entry.revealed === true) ? "revealed" : "masked";
+  else displayTier = "masked";
+  const partialAlias = normalizeAlias(entry.partialAlias ?? "") || null;
+  const out = { alias, partialAlias, displayTier };
+  const identification = normalizeIdentification(entry.identification);
+  if ( identification ) out.identification = identification;
   return out;
 }
 
 /**
- * Centrally validate an identification object (spec 16.2). Returns the
- * cleaned object, or null when the input is not a valid identification.
- * NOTE: the entire object is player-readable via the replicated setting.
+ * The single source of display truth for every surface (spec 17.3):
+ * the name players should currently see for an entry, or null when the
+ * surface must stay untouched (revealed / no entry → core true name).
+ * Partial tier falls back to the masked alias — never the true name.
+ * @param {MaskEntry|null|undefined} entry
+ * @returns {string|null}
+ */
+export function maskedNameFor(entry) {
+  if ( !entry || (entry.displayTier === "revealed") ) return null;
+  if ( entry.displayTier === "partial" ) return entry.partialAlias ?? entry.alias;
+  return entry.alias;
+}
+
+/**
+ * Normalize an identification value of either shape into the v3 container
+ * (spec 17.4): `{skill, dc, publicNote, rolls}` where rolls maps userId ->
+ * `{total, outcome, updatedAt}`. A legacy v2 single object (has `status`)
+ * maps to shared skill/dc/publicNote plus one roll under its userId
+ * (status -> outcome). Lenient: invalid roll records and unknown user ids
+ * are dropped from display (stored data untouched — migration is the only
+ * repairer).
  * @param {object|null|undefined} data
+ * @returns {object|null}  The cleaned container, or null when empty/invalid.
+ */
+function normalizeIdentification(data) {
+  if ( !data || (typeof data !== "object") ) return null;
+  let source = data;
+  if ( typeof data.status === "string" ) {
+    const userId = (data.userId && game.users.has(data.userId)) ? data.userId : null;
+    source = {
+      skill: data.skill,
+      dc: data.dc,
+      publicNote: data.publicNote,
+      rolls: userId ? { [userId]: { total: data.total, outcome: data.status, updatedAt: data.updatedAt } } : {}
+    };
+  }
+  const clean = validateIdentification(source, { lenient: true });
+  return (clean && !isEmptyIdentification(clean)) ? clean : null;
+}
+
+/**
+ * True when an identification container carries no information at all.
+ * @param {{skill: string|null, dc: number|null, publicNote: string, rolls: object}} id
+ * @returns {boolean}
+ */
+function isEmptyIdentification(id) {
+  return !id.skill && (id.dc === null) && !id.publicNote && !Object.keys(id.rolls).length;
+}
+
+/**
+ * Centrally validate an identification container (spec 17.4): shared
+ * skill/dc/publicNote for the creature plus a per-player rolls map.
+ * Strict mode (the write path) returns null when ANY provided roll record
+ * or roll key is invalid; lenient mode (reads/migration) drops the bad
+ * records instead. NOTE: the entire container is player-readable via the
+ * replicated setting.
+ * @param {object|null|undefined} data
+ * @param {{lenient?: boolean}} [options]
  * @returns {object|null}
  */
-export function validateIdentification(data) {
+export function validateIdentification(data, { lenient = false } = {}) {
   if ( !data || (typeof data !== "object") ) return null;
-  if ( !ID_STATUSES.includes(data.status) ) return null;
   let skill = null;
-  if ( data.skill != null ) {
+  if ( data.skill != null && data.skill !== "" ) {
     const s = String(data.skill);
     const known = globalThis.pf1?.config?.skills;
     if ( known ? (s in known) : /^[a-z0-9]{1,20}$/.test(s) ) skill = s;
     else return null;
   }
-  const num = v => (v == null || v === "") ? null : (Number.isFinite(Number(v)) ? Number(v) : undefined);
-  const total = num(data.total);
-  const dc = num(data.dc);
-  if ( (total === undefined) || (dc === undefined) ) return null;
-  let userId = null;
-  if ( data.userId != null && data.userId !== "" ) {
-    if ( !game.users.has(data.userId) ) return null;
-    userId = data.userId;
-  }
+  const dc = numOrNull(data.dc);
+  if ( dc === undefined ) return null;
   let publicNote = normalizeAlias(data.publicNote ?? "");
   if ( publicNote.length > MAX_NOTE_LENGTH ) publicNote = publicNote.slice(0, MAX_NOTE_LENGTH).trim();
-  const updatedAt = Number.isFinite(data.updatedAt) ? data.updatedAt : Date.now();
-  return { status: data.status, skill, total, dc, userId, updatedAt, publicNote };
+  const rawRolls = data.rolls ?? {};
+  if ( typeof rawRolls !== "object" ) return null;
+  const rolls = {};
+  for ( const [userId, raw] of Object.entries(rawRolls) ) {
+    const record = (game.users.has(userId)) ? validateRollRecord(raw) : null;
+    if ( !record ) {
+      if ( lenient ) continue;
+      return null;
+    }
+    rolls[userId] = record;
+  }
+  return { skill, dc, publicNote, rolls };
 }
 
 /**
- * One-time v1 -> v2 container migration (spec 16.1). GM client only, runs
- * on ready. Re-reads immediately before writing; no-op when already v2, so
- * concurrent GM clients and reloads are harmless. Valid v1 entries are
- * preserved exactly; malformed ones are excluded and REPORTED by count
- * (never logged by content, never silently repaired into the container).
+ * Validate one per-player roll record `{total, outcome, updatedAt}`.
+ * @param {object|null|undefined} data
+ * @returns {object|null}
+ */
+function validateRollRecord(data) {
+  if ( !data || (typeof data !== "object") ) return null;
+  if ( !ID_STATUSES.includes(data.outcome) ) return null;
+  const total = numOrNull(data.total);
+  if ( total === undefined ) return null;
+  const updatedAt = Number.isFinite(data.updatedAt) ? data.updatedAt : Date.now();
+  return { total, outcome: data.outcome, updatedAt };
+}
+
+/**
+ * Finite number coercion: null when empty/absent, undefined when invalid.
+ * @param {unknown} v
+ * @returns {number|null|undefined}
+ */
+function numOrNull(v) {
+  return (v == null || v === "") ? null : (Number.isFinite(Number(v)) ? Number(v) : undefined);
+}
+
+/**
+ * One-time v1/v2 -> v3 container migration (spec 17.2). GM client only,
+ * runs on ready. Re-reads immediately before writing; no-op when already
+ * v3, so concurrent GM clients and reloads are harmless. Refuses any
+ * newer/unknown container version. Valid entries are preserved exactly;
+ * the display mapping is purely mechanical (revealed:false -> "masked",
+ * revealed:true -> "revealed") and NEVER inferred from identification
+ * (BINDING — Lyra rev. 2). A v2 identification object becomes one
+ * roll-map record (status -> outcome) under its recorded userId, else
+ * the migrating GM's id. Malformed entries/records are excluded and
+ * REPORTED by count (never logged by content, never silently repaired).
  * @returns {Promise<void>}
  */
 export async function migrateRegistry() {
   if ( !game.user.isGM ) return;
   const raw = game.settings.get(MODULE_ID, SETTING_REGISTRY);
   if ( raw && (raw._v === REGISTRY_VERSION) ) return;
-  if ( raw && (typeof raw === "object") && (raw._v !== undefined) ) {
+  if ( raw && (typeof raw === "object") && (raw._v !== undefined) && (raw._v !== 2) ) {
     console.error(`${MODULE_ID} | registry container version ${raw._v} is newer than this build supports; migration refused`);
     return;
   }
+  const sourceVersion = (raw && (raw._v === 2)) ? 2 : 1;
   const flat = readEntries(raw);
   const entries = {};
-  let kept = 0, malformed = 0;
+  let kept = 0, malformed = 0, records = 0, badRecords = 0;
   for ( const [key, entry] of Object.entries(flat) ) {
     const valid = /^[a-zA-Z0-9]{16}:[a-zA-Z0-9]{16}$/.test(key)
       && entry && (typeof entry.alias === "string") && normalizeAlias(entry.alias);
-    if ( valid ) { entries[key] = { alias: entry.alias, revealed: entry.revealed === true }; kept++; }
-    else malformed++;
+    if ( !valid ) { malformed++; continue; }
+    const next = {
+      alias: entry.alias,
+      displayTier: (entry.revealed === true) ? "revealed" : "masked"
+    };
+    const id = entry.identification;
+    if ( id && (typeof id === "object") && (typeof id.status === "string") ) {
+      const userId = (id.userId && game.users.has(id.userId)) ? id.userId : game.user.id;
+      const clean = validateIdentification({
+        skill: id.skill,
+        dc: id.dc,
+        publicNote: id.publicNote,
+        rolls: { [userId]: { total: id.total, outcome: id.status, updatedAt: id.updatedAt } }
+      }, { lenient: true });
+      if ( clean && !isEmptyIdentification(clean) ) {
+        next.identification = clean;
+        if ( Object.keys(clean.rolls).length ) records++;
+        else badRecords++;
+      }
+      else badRecords++;
+    }
+    entries[key] = next;
+    kept++;
   }
   try {
     await game.settings.set(MODULE_ID, SETTING_REGISTRY, { _v: REGISTRY_VERSION, entries });
-    console.info(`${MODULE_ID} | registry migrated v1 -> v${REGISTRY_VERSION}: ${kept} entries kept, ${malformed} malformed excluded`);
-    if ( malformed ) ui.notifications.warn(game.i18n.format("PF15IM.Warn.MigrationMalformed", { count: malformed }));
+    console.info(`${MODULE_ID} | registry migrated v${sourceVersion} -> v${REGISTRY_VERSION}: ${kept} entries kept, ${records} identification records carried, ${malformed} malformed entries excluded, ${badRecords} invalid identification records dropped`);
+    if ( malformed || badRecords ) ui.notifications.warn(game.i18n.format("PF15IM.Warn.MigrationMalformed", { count: malformed + badRecords }));
   }
   catch(err) {
     console.error(`${MODULE_ID} | registry migration failed`, err);
@@ -232,7 +363,9 @@ export async function migrateRegistry() {
 
 /**
  * Normalize untrusted alias input: strip control characters, collapse
- * whitespace, trim, and enforce the maximum length.
+ * whitespace, trim, and enforce the maximum length. Also used verbatim
+ * for partialAlias (BINDING — Lyra rev. 3) and as the base normalizer
+ * for publicNote (longer cap applied by validateIdentification).
  * @param {unknown} value
  * @returns {string}
  */
@@ -247,7 +380,7 @@ export function normalizeAlias(value) {
 /**
  * Apply a mutation to a cloned registry and persist it. Fails fast with a
  * localized warning for non-GM users; the server would reject them anyway.
- * @param {(registry: object) => boolean} mutate  Return true if anything changed.
+ * @param {(entries: object) => boolean} mutate  Return true if anything changed.
  * @returns {Promise<boolean>}  True when a write was persisted.
  */
 async function updateRegistry(mutate) {
@@ -264,7 +397,7 @@ async function updateRegistry(mutate) {
   const entries = foundry.utils.deepClone(readEntries(raw));
   if ( !mutate(entries) ) return false;
   try {
-    // All writes produce the v2 container (spec 16.1).
+    // All writes produce the v3 container (spec 17.2).
     await game.settings.set(MODULE_ID, SETTING_REGISTRY, { _v: REGISTRY_VERSION, entries });
     return true;
   }
@@ -277,7 +410,8 @@ async function updateRegistry(mutate) {
 
 /**
  * Set or replace an alias. An empty normalized alias clears the mask
- * instead. Reveal state is preserved on edit.
+ * instead. partialAlias, displayTier, and identification are preserved
+ * on edit.
  * @param {MaskRef|Combatant} ref
  * @param {unknown} rawAlias
  * @returns {Promise<boolean>}
@@ -290,12 +424,36 @@ export async function setAlias(ref, rawAlias) {
   }
   const alias = normalizeAlias(rawAlias);
   if ( !alias ) return clearAlias(ref);
-  return updateRegistry(registry => {
-    const prev = registry[key];
+  return updateRegistry(entries => {
+    const prev = normalizeEntry(entries[key]);
     if ( prev?.alias === alias ) return false;
-    const next = { alias, revealed: prev?.revealed === true };
+    const next = { alias, displayTier: prev?.displayTier ?? "masked" };
+    if ( prev?.partialAlias ) next.partialAlias = prev.partialAlias;
     if ( prev?.identification ) next.identification = prev.identification;
-    registry[key] = next;
+    entries[key] = next;
+    return true;
+  });
+}
+
+/**
+ * Set or clear the partial-tier alias on an existing mask entry
+ * (spec 17.3). Sanitized exactly like the alias; empty clears the field
+ * (partial tier then falls back to the masked alias).
+ * @param {MaskRef|Combatant} ref
+ * @param {unknown} rawPartialAlias
+ * @returns {Promise<boolean>}
+ */
+export async function setPartialAlias(ref, rawPartialAlias) {
+  const key = getMaskKey(ref);
+  if ( !key ) return false;
+  const partialAlias = normalizeAlias(rawPartialAlias) || null;
+  return updateRegistry(entries => {
+    const prev = normalizeEntry(entries[key]);
+    if ( !prev || (prev.partialAlias === partialAlias) ) return false;
+    const next = { alias: prev.alias, displayTier: prev.displayTier };
+    if ( partialAlias ) next.partialAlias = partialAlias;
+    if ( prev.identification ) next.identification = prev.identification;
+    entries[key] = next;
     return true;
   });
 }
@@ -308,23 +466,43 @@ export async function setAlias(ref, rawAlias) {
 export async function clearAlias(ref) {
   const key = getMaskKey(ref);
   if ( !key ) return false;
-  return updateRegistry(registry => {
-    if ( !(key in registry) ) return false;
-    delete registry[key];
+  return updateRegistry(entries => {
+    if ( !(key in entries) ) return false;
+    delete entries[key];
     return true;
   });
 }
 
 /**
- * Set the reveal state of an existing mask entry.
+ * Set the display tier of an existing mask entry (spec 17.3). GM-set
+ * only; this is the ONLY code path that changes what players see —
+ * identification writes never touch it (BINDING decoupling).
  * @param {MaskRef|Combatant} ref
- * @param {boolean} revealed
+ * @param {"masked"|"partial"|"revealed"} tier
  * @returns {Promise<boolean>}
  */
+export async function setDisplayTier(ref, tier) {
+  const key = getMaskKey(ref);
+  if ( !key || !DISPLAY_TIERS.includes(tier) ) return false;
+  return updateRegistry(entries => {
+    const prev = normalizeEntry(entries[key]);
+    if ( !prev || (prev.displayTier === tier) ) return false;
+    const next = { alias: prev.alias, displayTier: tier };
+    if ( prev.partialAlias ) next.partialAlias = prev.partialAlias;
+    if ( prev.identification ) next.identification = prev.identification;
+    entries[key] = next;
+    return true;
+  });
+}
+
 /**
- * Set or clear the identification record on an existing mask entry
- * (spec 16.2). Pass null to clear. GM only; centrally validated; the
- * timestamp is module-generated on every write.
+ * Set or clear the whole identification container on an existing mask
+ * entry (spec 17.4): shared skill/dc/publicNote plus the per-player rolls
+ * map, written in ONE registry update. Pass null (or an all-empty
+ * container) to clear. GM only; strictly validated centrally; timestamps
+ * are module-generated — an unchanged roll keeps its stored updatedAt, a
+ * new or changed roll is stamped at write. Touches ONLY identification —
+ * never displayTier (BINDING decoupling).
  * @param {MaskRef|Combatant} ref
  * @param {object|null} data
  * @returns {Promise<boolean>}
@@ -334,29 +512,82 @@ export async function setIdentification(ref, data) {
   if ( !key ) return false;
   let clean = null;
   if ( data !== null ) {
-    clean = validateIdentification({ ...data, updatedAt: Date.now() });
+    clean = validateIdentification(data);
     if ( !clean ) {
       ui.notifications.warn("PF15IM.Warn.BadIdentification", { localize: true });
       return false;
     }
+    if ( isEmptyIdentification(clean) ) clean = null;
   }
   return updateRegistry(entries => {
-    const entry = entries[key];
-    if ( !entry ) return false;
-    if ( clean ) entry.identification = clean;
-    else if ( entry.identification ) delete entry.identification;
-    else return false;
+    const prev = normalizeEntry(entries[key]);
+    if ( !prev ) return false;
+    if ( clean ) {
+      // Module-generated timestamps: preserve only for unchanged rolls.
+      const prevRolls = prev.identification?.rolls ?? {};
+      for ( const [userId, record] of Object.entries(clean.rolls) ) {
+        const old = prevRolls[userId];
+        record.updatedAt = (old && (old.total === record.total) && (old.outcome === record.outcome))
+          ? old.updatedAt : Date.now();
+      }
+    }
+    const unchanged = JSON.stringify(clean) === JSON.stringify(prev.identification ?? null);
+    if ( unchanged ) return false;
+    const next = { alias: prev.alias, displayTier: prev.displayTier };
+    if ( prev.partialAlias ) next.partialAlias = prev.partialAlias;
+    if ( clean ) next.identification = clean;
+    entries[key] = next;
     return true;
   });
 }
 
-export async function setRevealed(ref, revealed) {
-  const key = getMaskKey(ref);
-  if ( !key ) return false;
-  return updateRegistry(registry => {
-    const entry = registry[key];
-    if ( !entry || (entry.revealed === !!revealed) ) return false;
-    entry.revealed = !!revealed;
+/**
+ * Enumerate same-actor TokenDocuments on the ref's scene (spec 17.5,
+ * facts C1/C2). Returns null when the ref's token is actor-less or
+ * unresolvable (mask-all unavailable).
+ * @param {MaskRef|Combatant|null|undefined} ref
+ * @returns {TokenDocument[]|null}
+ */
+export function sameActorTokens(ref) {
+  const scene = game.scenes.get(ref?.sceneId);
+  const actorId = scene?.tokens.get(ref?.tokenId)?.actorId;
+  if ( !actorId ) return null;
+  return scene.tokens.filter(t => t.actorId === actorId);
+}
+
+/**
+ * Mask every same-actor token on the ref's scene in ONE atomic registry
+ * write (spec 17.5). Tokens that already have entries are skipped unless
+ * `overwrite` is set (overwritten entries are replaced whole). With
+ * `numbered`, aliases get sequential " 1"/" 2"/... suffixes in scene
+ * token order (re-capped at 64 chars). New entries start at tier
+ * "masked". No Actor/Token document is touched.
+ * @param {MaskRef|Combatant} ref
+ * @param {{alias: unknown, partialAlias?: unknown, overwrite?: boolean, numbered?: boolean}} options
+ * @returns {Promise<number>}  Count of entries written (0 on failure/no-op).
+ */
+export async function maskAllForActor(ref, { alias, partialAlias, overwrite = false, numbered = false } = {}) {
+  const baseAlias = normalizeAlias(alias);
+  if ( !baseAlias ) return 0;
+  const basePartial = normalizeAlias(partialAlias ?? "") || null;
+  const tokens = sameActorTokens(ref);
+  if ( !tokens?.length ) return 0;
+  let written = 0;
+  const persisted = await updateRegistry(entries => {
+    const targets = tokens.filter(t => {
+      const key = getMaskKey({ sceneId: ref.sceneId, tokenId: t.id });
+      return key && (overwrite || !(key in entries));
+    });
+    if ( !targets.length ) return false;
+    targets.forEach((t, i) => {
+      const key = getMaskKey({ sceneId: ref.sceneId, tokenId: t.id });
+      const suffix = (numbered && (targets.length > 1)) ? ` ${i + 1}` : "";
+      const next = { alias: normalizeAlias(baseAlias + suffix), displayTier: "masked" };
+      if ( basePartial ) next.partialAlias = normalizeAlias(basePartial + suffix);
+      entries[key] = next;
+    });
+    written = targets.length;
     return true;
   });
+  return persisted ? written : 0;
 }

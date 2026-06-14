@@ -11,9 +11,22 @@ export const SETTING_REGISTRY = "registry";
 export const MAX_ALIAS_LENGTH = 64;
 
 /** Current registry container schema version. */
-export const REGISTRY_VERSION = 2;
+export const REGISTRY_VERSION = 3;
 
-/** Allowed identification statuses ("none" = no identification recorded). */
+/** Allowed display tiers, in toggle-cycle order (spec 17.3). */
+export const DISPLAY_TIERS = ["masked", "partial", "revealed"];
+
+/**
+ * Per-tier UI metadata (spec 17.3): distinct icons AND text states, never
+ * color alone. `next` defines the 3-state toggle cycle order.
+ */
+export const TIER_META = {
+  masked: { lineIcon: "fa-mask", toggleIcon: "fa-masks-theater", next: "partial" },
+  partial: { lineIcon: "fa-eye-low-vision", toggleIcon: "fa-eye-low-vision", next: "revealed" },
+  revealed: { lineIcon: "fa-eye", toggleIcon: "fa-eye", next: "masked" }
+};
+
+/** Allowed identification outcomes ("none" = no record). */
 export const ID_STATUSES = ["unidentified", "partial", "identified"];
 
 /** Maximum publicNote length after normalization. */

@@ -3,43 +3,60 @@
     "Settings": {
       "Registry": {
         "Name": "Identity Mask Registry",
-        "Hint": "Internal storage for combat-tracker aliases and reveal states. Managed through the tracker controls; not edited directly."
+        "Hint": "Internal storage for identity-mask aliases, display tiers, and identification records. Managed through the tracker/HUD controls; not edited directly."
       }
     },
     "Tracker": {
       "EditAlias": "Edit identity mask",
-      "Reveal": "Reveal true identity",
-      "Conceal": "Conceal identity",
-      "Masked": "MASKED",
-      "Revealed": "REVEALED"
+      "TierToggle": "Display tier: {tier} — click to set {next}"
+    },
+    "Tier": {
+      "masked": "Masked",
+      "partial": "Partial",
+      "revealed": "Revealed"
     },
     "Editor": {
       "Title": "Identity Mask",
       "AliasLabel": "Public Alias",
-      "AliasHint": "What players see in the combat tracker while this creature is masked. Maximum 64 characters. Leave empty and save, or press Clear, to remove the mask.",
+      "PartialAliasLabel": "Partial Alias",
+      "SkillUsed": "Skill Used",
+      "DcNeeded": "DC Needed",
+      "PublicNote": "Public Note",
+      "Instructions": "Players see the Public Alias while Masked and the Partial Alias while Partial (falls back to the Public Alias — never the true name). Skill, DC, and note are shared for this creature. A player row below is logged when an Outcome is selected; clear the Outcome to remove it. Leave the Public Alias empty and save, or press Clear, to remove the mask.",
       "Save": "Save",
       "Clear": "Clear",
       "Cancel": "Cancel",
-      "IdLegend": "Identification (manual record)",
-      "IdStatus": "Status",
-      "IdSkill": "Skill",
+      "IdLegend": "Identification Rolls (Manual Record)",
+      "IdPlayer": "Player",
+      "IdOutcome": "Outcome",
       "IdTotal": "Roll Total",
-      "IdDc": "DC",
-      "IdNote": "Public Note",
-      "IdNone": "— none recorded —",
-      "IdPlayerReadable": "Caution: this entire identification record (status, skill, total, DC, roller, timestamp, note) is technically readable by player clients. Recording it never reveals the name — reveal stays a separate manual action."
+      "IdNone": "— none —",
+      "IdNoPlayers": "No players in this world to log rolls for.",
+      "IdPlayerReadable": "Caution: everything recorded here (skill, DC, note, and each player's roll total and outcome) is technically readable by all player clients. Records never change what players see — only the display tier control does that."
     },
     "IdStatus": {
       "unidentified": "Unidentified",
       "partial": "Partial",
       "identified": "Identified"
     },
+    "MaskAll": {
+      "Button": "Mask All",
+      "Title": "Mask All Tokens of This Actor",
+      "Confirm": "Mask Tokens",
+      "Count": "{count} of {total} same-actor tokens on this scene will be masked.",
+      "Overwrite": "Overwrite existing masks (replaces their entries entirely)",
+      "Numbered": "Number the aliases (e.g. \"Shadowy Figure 1\", \"Shadowy Figure 2\")",
+      "Preview": "Aliases to be written: {names}",
+      "NeedAlias": "Enter a public alias before using Mask All.",
+      "NoTargets": "No tokens to mask — every same-actor token on this scene already has a mask entry.",
+      "Done": "Masked {count} token(s)."
+    },
     "Warn": {
       "GmOnly": "Only a GM may change identity masks.",
       "SaveFailed": "Failed to save identity-mask state. See the console for details.",
       "NoToken": "This combatant has no scene token and cannot be masked.",
       "BadIdentification": "Invalid identification data; nothing was saved.",
-      "MigrationMalformed": "Identity-mask registry migration excluded {count} malformed entries (see console)."
+      "MigrationMalformed": "Identity-mask registry migration excluded {count} malformed items (see console)."
     }
   }
 }
