@@ -20,6 +20,17 @@ campaign-specific).
 
 ---
 
+## Installation
+
+In Foundry's **Add-on Modules → Install Module**, paste this **Manifest URL**:
+
+```
+https://raw.githubusercontent.com/Dade512/pf15-identity-mask/main/module.json
+```
+
+This tracks the latest release on `main`. Then enable **PF1.5 Identity Mask** in a `pf1` world
+(Foundry v13.350+).
+
 ## What it does
 
 - **Mask**: GM sets an alias per token — from the combat-tracker row or from the **Token HUD**
