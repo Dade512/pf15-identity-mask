@@ -203,13 +203,52 @@ export function maskedNameFor(entry) {
 }
 
 /**
- * Normalize an identification value of either shape into the v3 container
+ * Detect the obsolete intermediate-0.5.0 identification sub-shape
+ * (follow-up #1, dev-world only): a bare `{<userId>: {outcome, …}}` map
+ * written by a between-build before the `{skill, dc, publicNote, rolls}`
+ * container was finalized. True only when there is no canonical `rolls`
+ * key and no v2 `status`, but at least one own value is a roll-record-shaped
+ * object — so it never misfires on a supported shape (the canonical
+ * container always has `rolls`; a v2 object always has `status`).
+ * @param {object} data
+ * @returns {boolean}
+ */
+function isBareRollMap(data) {
+  if ( (data.rolls !== undefined) || (typeof data.status === "string") ) return false;
+  return Object.values(data).some(v => v && (typeof v === "object") && (typeof v.outcome === "string"));
+}
+
+/**
+ * Lift an obsolete bare roll map into the canonical identification shape so
+ * a world that ran an intermediate 0.5.0 build still DISPLAYS its records
+ * (follow-up #1). Shared skill/dc/publicNote are promoted best-effort from
+ * the first record carrying each; the map itself becomes `rolls`, where
+ * validateIdentification keeps only known-user records and reads only
+ * total/outcome/updatedAt per record. Read-side only — nothing is rewritten
+ * here; the next GM edit persists the canonical container.
+ * @param {object} data
+ * @returns {{skill: unknown, dc: unknown, publicNote: unknown, rolls: object}}
+ */
+function liftBareRollMap(data) {
+  const records = Object.values(data).filter(v => v && (typeof v === "object"));
+  return {
+    skill: records.find(r => (r.skill != null) && (r.skill !== ""))?.skill ?? null,
+    dc: records.find(r => (r.dc != null) && (r.dc !== ""))?.dc ?? null,
+    publicNote: records.find(r => r.publicNote)?.publicNote ?? "",
+    rolls: data
+  };
+}
+
+/**
+ * Normalize an identification value of any known shape into the v3 container
  * (spec 17.4): `{skill, dc, publicNote, rolls}` where rolls maps userId ->
- * `{total, outcome, updatedAt}`. A legacy v2 single object (has `status`)
- * maps to shared skill/dc/publicNote plus one roll under its userId
- * (status -> outcome). Lenient: invalid roll records and unknown user ids
- * are dropped from display (stored data untouched — migration is the only
- * repairer).
+ * `{total, outcome, updatedAt}`. Three input shapes are accepted: the
+ * canonical container; a legacy v2 single object (has `status`) → shared
+ * skill/dc/publicNote plus one roll under its userId (status -> outcome);
+ * and the obsolete intermediate-0.5.0 bare roll map (follow-up #1) → lifted
+ * by liftBareRollMap. Lenient: invalid roll records and unknown user ids are
+ * dropped from display (stored data untouched — migration / the next GM edit
+ * is the only repairer).
  * @param {object|null|undefined} data
  * @returns {object|null}  The cleaned container, or null when empty/invalid.
  */
@@ -225,6 +264,7 @@ function normalizeIdentification(data) {
       rolls: userId ? { [userId]: { total: data.total, outcome: data.status, updatedAt: data.updatedAt } } : {}
     };
   }
+  else if ( isBareRollMap(data) ) source = liftBareRollMap(data);
   const clean = validateIdentification(source, { lenient: true });
   return (clean && !isEmptyIdentification(clean)) ? clean : null;
 }

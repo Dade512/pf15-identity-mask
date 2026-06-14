@@ -62,7 +62,9 @@ export async function openAliasEditor(ref) {
     "</tr>"
   ].join(""));
   if ( !rollRows.length ) {
-    rollRows.push(`<tr><td colspan="3" class="${CSS.editor}-id-empty">${game.i18n.localize("PF15IM.Editor.IdNoPlayers")}</td></tr>`);
+    // Text set via textContent in render() (hygiene: never interpolate even
+    // localized strings into the content template).
+    rollRows.push(`<tr><td colspan="3" class="${CSS.editor}-id-empty"></td></tr>`);
   }
   const content = [
     `<div class="${CSS.editor}-row">`,
@@ -201,6 +203,11 @@ export async function openAliasEditor(ref) {
         tr.querySelector(`input[name="total-${userId}"]`).value = record.total ?? "";
         tr.querySelector(`select[name="outcome-${userId}"]`).value = record.outcome;
       }
+
+      // Empty-state "no players" cell text via textContent (hygiene: never
+      // interpolate even localized strings into the content template).
+      const emptyCell = el.querySelector(`.${CSS.editor}-id-empty`);
+      if ( emptyCell ) emptyCell.textContent = game.i18n.localize("PF15IM.Editor.IdNoPlayers");
     }
   });
 

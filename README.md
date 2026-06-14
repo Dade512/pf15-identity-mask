@@ -10,13 +10,14 @@ chat sender line, until the GM moves the **display tier** toward the truth:
 half-identified guess like `Diseased Kinder?`). The real Actor and Token names are never
 changed.
 
-Version **0.5.0** · Croaker's Ledger visual language · reusable infrastructure (not
+Version **0.5.1** · Croaker's Ledger visual language · reusable infrastructure (not
 campaign-specific).
 
-> **Updating to 0.5.0**: the registry storage format changed again (v3). Restart the world and
-> have **every connected client reload — especially GM clients — before using any mask
-> controls.** A stale GM client could otherwise write the old format over the migrated
-> registry.
+> **Updating to 0.5.x**: the registry storage format is v3. When coming from v1/v2 (≤0.4.0),
+> restart the world and have **every connected client reload — especially GM clients — before
+> using any mask controls**, so a stale GM client cannot write the old format over the migrated
+> registry. 0.5.1 itself changes no storage format (a maintenance release); a normal reload of
+> updated clients is enough.
 
 ---
 
@@ -135,7 +136,7 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 - Full rationale, evidence, and the visibility/permission matrices:
   [`docs/specs/identity-mask/identity-mask.spec.md`](docs/specs/identity-mask/identity-mask.spec.md).
 
-## Known limitations (0.5.0)
+## Known limitations (0.5.1)
 
 - Presentation-layer only (see Security above).
 - The display tier is global — every player sees the same thing. Per-player tiers (only the
