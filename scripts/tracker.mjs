@@ -13,7 +13,7 @@
  */
 
 import { CSS, TIER_META } from "./const.mjs";
-import { getMaskEntry, getMaskKey, maskedNameFor, setDisplayTier } from "./state.mjs";
+import { getMaskEntry, getMaskKey, maskedNameFor, mysteryArtFor, setDisplayTier } from "./state.mjs";
 import { openAliasEditor } from "./editor.mjs";
 
 /**
@@ -42,23 +42,31 @@ export function onRenderCombatTracker(app, element) {
     if ( isGM ) decorateGmRow(li, combatant, entry);
     else {
       const shown = maskedNameFor(entry);
-      if ( shown ) maskPlayerRow(li, shown);
+      if ( shown ) maskPlayerRow(li, shown, entry);
     }
   }
 }
 
 /**
- * Replace the player-visible name surfaces with the tier display name.
- * The core template carries the true name in exactly two places per row:
- * strong.name text and img.token-image[alt].
+ * Replace the player-visible name surfaces with the tier display name, and
+ * (0.6.0) swap the row portrait to mystery art while masked/partial. The core
+ * template carries the true name in two places per row (strong.name text,
+ * img.token-image[alt]) and the true art in img.token-image[src]. All three
+ * are display-only DOM-property assignments on fresh per-render nodes; no
+ * document is touched.
  * @param {HTMLElement} li
  * @param {string} shown  The tier-resolved display name.
+ * @param {import("./state.mjs").MaskEntry} entry  The resolved mask entry.
  */
-function maskPlayerRow(li, shown) {
+function maskPlayerRow(li, shown, entry) {
   const nameEl = li.querySelector(".token-name .name");
   if ( nameEl ) nameEl.textContent = shown;
   const imgEl = li.querySelector("img.token-image");
-  if ( imgEl ) imgEl.alt = shown;
+  if ( imgEl ) {
+    imgEl.alt = shown;
+    const art = mysteryArtFor(entry);
+    if ( art ) imgEl.src = art;
+  }
 }
 
 /**

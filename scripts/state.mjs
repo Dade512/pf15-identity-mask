@@ -15,7 +15,7 @@
  * and identification roll records (ALL player-readable; see spec 17.4).
  */
 
-import { MODULE_ID, SETTING_REGISTRY, MAX_ALIAS_LENGTH, REGISTRY_VERSION, DISPLAY_TIERS, ID_STATUSES, MAX_NOTE_LENGTH } from "./const.mjs";
+import { MODULE_ID, SETTING_REGISTRY, SETTING_MYSTERY_ART, MAX_ALIAS_LENGTH, MAX_PATH_LENGTH, DEFAULT_MYSTERY_ART, REGISTRY_VERSION, DISPLAY_TIERS, ID_STATUSES, MAX_NOTE_LENGTH } from "./const.mjs";
 
 /**
  * Normalize any known registry shape to its entries map (tri-shape reader,
@@ -59,6 +59,7 @@ function isWritableContainer(raw) {
  * A normalized mask entry as returned by getMaskEntry().
  * @typedef {{alias: string, partialAlias: string|null,
  *   displayTier: "masked"|"partial"|"revealed",
+ *   mysteryArt: string|null,
  *   identification?: object}} MaskEntry
  */
 
@@ -77,6 +78,17 @@ export function registerSettings() {
     type: Object,
     default: {},
     onChange: () => { syncTracker(); syncChat(); syncNameplates(); }
+  });
+  // Campaign-wide default mystery image (0.6.0). Player-readable display config;
+  // GM-set via the module settings UI. Per-mask overrides live on the entry.
+  game.settings.register(MODULE_ID, SETTING_MYSTERY_ART, {
+    name: "PF15IM.Settings.MysteryArt.Name",
+    hint: "PF15IM.Settings.MysteryArt.Hint",
+    scope: "world",
+    config: true,
+    type: String,
+    default: DEFAULT_MYSTERY_ART,
+    onChange: () => { syncTracker(); }
   });
 }
 
@@ -182,7 +194,8 @@ function normalizeEntry(entry) {
   else if ( entry.displayTier === undefined ) displayTier = (entry.revealed === true) ? "revealed" : "masked";
   else displayTier = "masked";
   const partialAlias = normalizeAlias(entry.partialAlias ?? "") || null;
-  const out = { alias, partialAlias, displayTier };
+  const mysteryArt = normalizeImagePath(entry.mysteryArt ?? "") || null;
+  const out = { alias, partialAlias, displayTier, mysteryArt };
   const identification = normalizeIdentification(entry.identification);
   if ( identification ) out.identification = identification;
   return out;
@@ -200,6 +213,22 @@ export function maskedNameFor(entry) {
   if ( !entry || (entry.displayTier === "revealed") ) return null;
   if ( entry.displayTier === "partial" ) return entry.partialAlias ?? entry.alias;
   return entry.alias;
+}
+
+/**
+ * The single source of art-display truth (0.6.0, mirrors maskedNameFor): the
+ * mystery image players should currently see for an entry, or null when the
+ * surface must keep the TRUE art (revealed / no entry). While masked or
+ * partial, the per-mask override wins, else the campaign-wide default setting,
+ * else the hardcoded DEFAULT_MYSTERY_ART. Display-only; no document is touched.
+ * @param {MaskEntry|null|undefined} entry
+ * @returns {string|null}
+ */
+export function mysteryArtFor(entry) {
+  if ( !entry || (maskedNameFor(entry) === null) ) return null;
+  if ( entry.mysteryArt ) return entry.mysteryArt;
+  const setting = normalizeImagePath(game.settings.get(MODULE_ID, SETTING_MYSTERY_ART));
+  return setting || DEFAULT_MYSTERY_ART;
 }
 
 /**
@@ -418,6 +447,26 @@ export function normalizeAlias(value) {
 }
 
 /**
+ * Normalize an untrusted image-path value (0.6.0 mystery art). Unlike
+ * normalizeAlias, internal whitespace is PRESERVED — Foundry asset paths may
+ * contain spaces (e.g. "Campaign Material/..."). Control chars are stripped,
+ * ends trimmed, length capped. Rendered only as img.src / PIXI texture src
+ * (never HTML), so a hostile value cannot execute script. Empty → "".
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function normalizeImagePath(value) {
+  let path = String(value ?? "");
+  // Strip C0 control chars + DEL; keep spaces (valid in Foundry asset paths).
+  path = Array.from(path).filter(ch => {
+    const c = ch.codePointAt(0);
+    return (c > 0x1f) && (c !== 0x7f);
+  }).join("").trim();
+  if ( path.length > MAX_PATH_LENGTH ) path = path.slice(0, MAX_PATH_LENGTH).trim();
+  return path;
+}
+
+/**
  * Apply a mutation to a cloned registry and persist it. Fails fast with a
  * localized warning for non-GM users; the server would reject them anyway.
  * @param {(entries: object) => boolean} mutate  Return true if anything changed.
@@ -469,6 +518,7 @@ export async function setAlias(ref, rawAlias) {
     if ( prev?.alias === alias ) return false;
     const next = { alias, displayTier: prev?.displayTier ?? "masked" };
     if ( prev?.partialAlias ) next.partialAlias = prev.partialAlias;
+    if ( prev?.mysteryArt ) next.mysteryArt = prev.mysteryArt;
     if ( prev?.identification ) next.identification = prev.identification;
     entries[key] = next;
     return true;
@@ -492,6 +542,7 @@ export async function setPartialAlias(ref, rawPartialAlias) {
     if ( !prev || (prev.partialAlias === partialAlias) ) return false;
     const next = { alias: prev.alias, displayTier: prev.displayTier };
     if ( partialAlias ) next.partialAlias = partialAlias;
+    if ( prev.mysteryArt ) next.mysteryArt = prev.mysteryArt;
     if ( prev.identification ) next.identification = prev.identification;
     entries[key] = next;
     return true;
@@ -529,6 +580,32 @@ export async function setDisplayTier(ref, tier) {
     if ( !prev || (prev.displayTier === tier) ) return false;
     const next = { alias: prev.alias, displayTier: tier };
     if ( prev.partialAlias ) next.partialAlias = prev.partialAlias;
+    if ( prev.mysteryArt ) next.mysteryArt = prev.mysteryArt;
+    if ( prev.identification ) next.identification = prev.identification;
+    entries[key] = next;
+    return true;
+  });
+}
+
+/**
+ * Set or clear the per-mask mystery-art override on an existing mask entry
+ * (0.6.0). Sanitized as an image path; empty clears the override (the entry
+ * then falls back to the campaign-wide default setting). GM only. Touches
+ * ONLY mysteryArt — never the alias, tier, or identification.
+ * @param {MaskRef|Combatant} ref
+ * @param {unknown} rawPath
+ * @returns {Promise<boolean>}
+ */
+export async function setMysteryArt(ref, rawPath) {
+  const key = getMaskKey(ref);
+  if ( !key ) return false;
+  const mysteryArt = normalizeImagePath(rawPath) || null;
+  return updateRegistry(entries => {
+    const prev = normalizeEntry(entries[key]);
+    if ( !prev || (prev.mysteryArt === mysteryArt) ) return false;
+    const next = { alias: prev.alias, displayTier: prev.displayTier };
+    if ( prev.partialAlias ) next.partialAlias = prev.partialAlias;
+    if ( mysteryArt ) next.mysteryArt = mysteryArt;
     if ( prev.identification ) next.identification = prev.identification;
     entries[key] = next;
     return true;
@@ -575,6 +652,7 @@ export async function setIdentification(ref, data) {
     if ( unchanged ) return false;
     const next = { alias: prev.alias, displayTier: prev.displayTier };
     if ( prev.partialAlias ) next.partialAlias = prev.partialAlias;
+    if ( prev.mysteryArt ) next.mysteryArt = prev.mysteryArt;
     if ( clean ) next.identification = clean;
     entries[key] = next;
     return true;

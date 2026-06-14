@@ -17,8 +17,8 @@
  * assigned to DOM properties (value/textContent) in the render callback.
  */
 
-import { CSS, MAX_ALIAS_LENGTH, MAX_NOTE_LENGTH, ID_STATUSES } from "./const.mjs";
-import { clearAlias, getMaskEntry, maskAllForActor, normalizeAlias, sameActorTokens, setAlias, setIdentification, setPartialAlias } from "./state.mjs";
+import { CSS, MAX_ALIAS_LENGTH, MAX_NOTE_LENGTH, MAX_PATH_LENGTH, ID_STATUSES } from "./const.mjs";
+import { clearAlias, getMaskEntry, maskAllForActor, normalizeAlias, sameActorTokens, setAlias, setIdentification, setMysteryArt, setPartialAlias } from "./state.mjs";
 
 /**
  * Users shown in the roll table: every non-GM user, plus any user id that
@@ -89,6 +89,11 @@ export async function openAliasEditor(ref) {
     `<label>${game.i18n.localize("PF15IM.Editor.PublicNote")}</label>`,
     `<input type="text" name="idNote" maxlength="${MAX_NOTE_LENGTH}" autocomplete="off">`,
     "</div>",
+    `<div class="form-group ${CSS.editor}-group">`,
+    `<label for="pf15im-mystery-input">${game.i18n.localize("PF15IM.Editor.MysteryArtLabel")}</label>`,
+    `<input type="text" id="pf15im-mystery-input" name="mysteryArt" maxlength="${MAX_PATH_LENGTH}" autocomplete="off" spellcheck="false">`,
+    `<p class="hint">${game.i18n.localize("PF15IM.Editor.MysteryArtHint")}</p>`,
+    "</div>",
     `<p class="hint">${game.i18n.localize("PF15IM.Editor.Instructions")}</p>`,
     `<fieldset class="${CSS.editor}-id"><legend>${game.i18n.localize("PF15IM.Editor.IdLegend")}</legend>`,
     `<table class="${CSS.editor}-id-table"><thead><tr>`,
@@ -110,6 +115,7 @@ export async function openAliasEditor(ref) {
       idSkill: f.idSkill?.value || null,
       idDc: f.idDc?.value ?? null,
       idNote: f.idNote?.value ?? "",
+      mysteryArt: f.mysteryArt?.value ?? "",
       rolls: {}
     };
     for ( const userId of rowUsers ) {
@@ -193,6 +199,8 @@ export async function openAliasEditor(ref) {
       el.querySelector("select[name=idSkill]").value = identification?.skill ?? "";
       el.querySelector("input[name=idDc]").value = identification?.dc ?? "";
       el.querySelector("input[name=idNote]").value = identification?.publicNote ?? "";
+      const mysteryInput = el.querySelector("input[name=mysteryArt]");
+      if ( mysteryInput ) mysteryInput.value = entry?.mysteryArt ?? "";
 
       // Fill player names (untrusted -> textContent) and seed roll rows.
       for ( const tr of el.querySelectorAll(`.${CSS.editor}-id-table tr[data-pf15im-user]`) ) {
@@ -220,6 +228,7 @@ export async function openAliasEditor(ref) {
   if ( !normalizeAlias(result.alias) ) { await setAlias(ref, result.alias); return; }
   await setAlias(ref, result.alias);
   await setPartialAlias(ref, result.partialAlias);
+  await setMysteryArt(ref, result.mysteryArt);
 
   // Identification container: shared skill/DC/note + per-player rolls,
   // one write. NEVER touches the display tier (spec 17.4).

@@ -7,6 +7,9 @@ export const MODULE_ID = "pf15-identity-mask";
 /** Key of the world-scope registry setting. */
 export const SETTING_REGISTRY = "registry";
 
+/** Key of the world-scope default mystery-art setting (0.6.0). */
+export const SETTING_MYSTERY_ART = "mysteryArt";
+
 /** Maximum alias length after normalization. */
 export const MAX_ALIAS_LENGTH = 64;
 
@@ -31,6 +34,12 @@ export const ID_STATUSES = ["unidentified", "partial", "identified"];
 
 /** Maximum publicNote length after normalization. */
 export const MAX_NOTE_LENGTH = 200;
+
+/** Maximum image-path length after normalization (0.6.0 mystery art). */
+export const MAX_PATH_LENGTH = 256;
+
+/** Default mystery image when no per-mask override or campaign default is set. */
+export const DEFAULT_MYSTERY_ART = "icons/svg/mystery-man.svg";
 
 /** CSS class names owned by this module (all selectors are scoped to these). */
 export const CSS = {
