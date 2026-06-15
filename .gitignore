@@ -6,3 +6,6 @@ desktop.ini
 
 # Dev-only docs (stay local, not for distribution)
 docs/
+
+# External audit artifact (kept local, out of git scope)
+lyras_audit.md
