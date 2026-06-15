@@ -16,6 +16,7 @@
  */
 
 import { MODULE_ID, SETTING_REGISTRY, SETTING_MYSTERY_ART, MAX_ALIAS_LENGTH, MAX_PATH_LENGTH, DEFAULT_MYSTERY_ART, REGISTRY_VERSION, DISPLAY_TIERS, ID_STATUSES, MAX_NOTE_LENGTH } from "./const.mjs";
+import { syncTokenArt } from "./canvas.mjs";
 
 /**
  * Normalize any known registry shape to its entries map (tri-shape reader,
@@ -77,7 +78,7 @@ export function registerSettings() {
     config: false,
     type: Object,
     default: {},
-    onChange: () => { syncTracker(); syncChat(); syncNameplates(); }
+    onChange: () => { syncTracker(); syncChat(); syncNameplates(); syncTokenArt(); }
   });
   // Campaign-wide default mystery image (0.6.0). Player-readable display config;
   // GM-set via the module settings UI. Per-mask overrides live on the entry.
@@ -88,7 +89,7 @@ export function registerSettings() {
     config: true,
     type: String,
     default: DEFAULT_MYSTERY_ART,
-    onChange: () => { syncTracker(); }
+    onChange: () => { syncTracker(); syncTokenArt(); }
   });
 }
 

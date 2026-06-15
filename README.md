@@ -10,13 +10,13 @@ chat sender line, until the GM moves the **display tier** toward the truth:
 half-identified guess like `Diseased Kinder?`). The real Actor and Token names are never
 changed.
 
-Version **0.6.0** · Croaker's Ledger visual language · reusable infrastructure (not
+Version **0.6.1** · Croaker's Ledger visual language · reusable infrastructure (not
 campaign-specific).
 
 > **Updating to 0.6.x**: the registry storage format is v3. When coming from v1/v2 (≤0.4.0),
 > restart the world and have **every connected client reload — especially GM clients — before
 > using any mask controls**, so a stale GM client cannot write the old format over the migrated
-> registry. 0.6.0 changes no storage format; a normal reload of updated clients is enough.
+> registry. 0.6.x changes no storage format; a normal reload of updated clients is enough.
 
 ---
 
@@ -48,11 +48,11 @@ This tracks the latest release on `main`. Then enable **PF1.5 Identity Mask** in
 - **Mask all** (0.5.0): one editor button masks every same-Actor token on the current scene,
   with a confirmation dialog showing the affected count, an opt-in overwrite of existing
   entries, and optional numbered aliases (`Shadowy Figure 1/2/3`).
-- **Mystery art** (0.6.0): while a creature is Masked or Partial, players see a generic mystery
-  image instead of its portrait in the **combat tracker**; the GM always sees the true art.
-  A campaign-wide default image is set in module settings (default: the core "mystery man"
-  silhouette), with an optional per-mask override in the editor. *Canvas token-art masking
-  follows in 0.6.1.*
+- **Mystery art** (0.6.0–0.6.1): while a creature is Masked or Partial, players see a generic
+  mystery image instead of its portrait — in the **combat tracker** (0.6.0) and on the **canvas
+  map token** (0.6.1); the GM always sees the true art. A campaign-wide default image is set in
+  module settings (default: the core "mystery man" silhouette), with an optional per-mask
+  override in the editor. Dynamic-ring tokens keep their true art on the canvas (fail-open).
 - **Per-token independence**: two tokens of the same Actor (`Ghoul`) can carry different aliases
   (`Starved Corpse`, `Crawling Shape`) with independent display tiers.
 - **Persistence**: mask state survives combatant removal/re-add, combat deletion/recreation,
@@ -148,11 +148,12 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 - Full rationale, evidence, and the visibility/permission matrices:
   [`docs/specs/identity-mask/identity-mask.spec.md`](docs/specs/identity-mask/identity-mask.spec.md).
 
-## Known limitations (0.6.0)
+## Known limitations (0.6.1)
 
 - Presentation-layer only (see Security above).
-- Mystery art masks the **combat-tracker** portrait only in 0.6.0; canvas token-art masking
-  arrives in 0.6.1. The mystery image path is player-readable display config.
+- Mystery art masks both the **combat-tracker** portrait and the **canvas map token** (0.6.1);
+  the mystery image path is player-readable display config. Dynamic-ring tokens keep true art on
+  the canvas (fail-open; masking the ring subject is out of scope).
 - The display tier is global — every player sees the same thing. Per-player tiers (only the
   roller sees the name) are deliberately deferred.
 - Targeting UI, actor directory, journal content, and third-party chat decorations still show
@@ -164,6 +165,6 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 
 ## Future possibilities (roadmap: `docs/specs/identity-mask/ROADMAP.md`)
 
-Canvas token-art masking (0.6.1) · creature knowledge-profile / art library (0.7.x) ·
+Creature knowledge-profile / art library (0.7.x) ·
 roll-assisted identification (prerequisites in the roadmap) · per-player display tiers ·
 actor-directory masking · registry purge tool · alias suggestion tables.
