@@ -7,7 +7,7 @@
       },
       "MysteryArt": {
         "Name": "Default Mystery Art",
-        "Hint": "Image shown to players in place of a creature's portrait while it is Masked or Partial (combat tracker in 0.6.0; canvas in a later release). A per-mask override can be set in the mask editor. The GM always sees the true art."
+        "Hint": "Image shown to players in place of a creature's portrait while it is Masked or Partial — in the combat tracker and on the canvas map token. A per-mask override can be set in the mask editor. The GM always sees the true art."
       }
     },
     "Tracker": {
@@ -27,7 +27,7 @@
       "DcNeeded": "DC Needed",
       "PublicNote": "Public Note",
       "MysteryArtLabel": "Mystery Art (override)",
-      "MysteryArtHint": "Optional. Image path shown to players instead of this token's portrait while Masked or Partial. Leave empty to use the campaign default. Tracker only in 0.6.0; canvas in a later release.",
+      "MysteryArtHint": "Optional. Image path shown to players instead of this token's portrait while Masked or Partial (combat tracker and canvas map token). Leave empty to use the campaign default.",
       "Instructions": "Players see the Public Alias while Masked and the Partial Alias while Partial (falls back to the Public Alias — never the true name). Skill, DC, and note are shared for this creature. A player row below is logged when an Outcome is selected; clear the Outcome to remove it. Leave the Public Alias empty and save, or press Clear, to remove the mask.",
       "Save": "Save",
       "Clear": "Clear",

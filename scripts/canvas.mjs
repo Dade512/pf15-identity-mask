@@ -98,8 +98,14 @@ async function applyArtMask(token) {
     const src = desired ?? doc.texture.src;
     const fallback = desired ? "icons/svg/mystery-man.svg" : CONST.DEFAULT_TOKEN;
     const tex = await foundry.canvas.loadTexture(src, { fallback });
-    // Re-check the placeable still exists and matches the same public property
-    // core assigns (PrimaryCanvasGroup.addToken).
+    // Race guard (Lyra 0.6.1 audit): the mask state may have changed while the
+    // texture loaded. Re-resolve the desired art; if it moved on, skip and let
+    // the newer applyArtMask call apply the current state (avoids a stale load
+    // clobbering newer art). Assigns the same public property core assigns.
+    let current = null;
+    try { current = mysteryArtFor(getMaskEntry(refForTokenDocument(doc))); }
+    catch(err) { return; }
+    if ( current !== desired ) return;
     if ( token.mesh ) token.mesh.texture = tex;
     token._pf15imArtSrc = desired;
   }

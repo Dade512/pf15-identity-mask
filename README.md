@@ -10,7 +10,7 @@ chat sender line, until the GM moves the **display tier** toward the truth:
 half-identified guess like `Diseased Kinder?`). The real Actor and Token names are never
 changed.
 
-Version **0.6.1** · Croaker's Ledger visual language · reusable infrastructure (not
+Version **0.6.2** · Croaker's Ledger visual language · reusable infrastructure (not
 campaign-specific).
 
 > **Updating to 0.6.x**: the registry storage format is v3. When coming from v1/v2 (≤0.4.0),
@@ -148,7 +148,7 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 - Full rationale, evidence, and the visibility/permission matrices:
   [`docs/specs/identity-mask/identity-mask.spec.md`](docs/specs/identity-mask/identity-mask.spec.md).
 
-## Known limitations (0.6.1)
+## Known limitations (0.6.2)
 
 - Presentation-layer only (see Security above).
 - Mystery art masks both the **combat-tracker** portrait and the **canvas map token** (0.6.1);
