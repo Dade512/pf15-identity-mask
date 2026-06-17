@@ -17,8 +17,9 @@
  * assigned to DOM properties (value/textContent) in the render callback.
  */
 
-import { CSS, MAX_ALIAS_LENGTH, MAX_NOTE_LENGTH, MAX_PATH_LENGTH, ID_STATUSES } from "./const.mjs";
+import { CSS, MAX_ALIAS_LENGTH, MAX_NOTE_LENGTH, MAX_PATH_LENGTH, MAX_PROFILE_LABEL, ID_STATUSES } from "./const.mjs";
 import { clearAlias, getMaskEntry, maskAllForActor, normalizeAlias, sameActorTokens, setAlias, setIdentification, setMysteryArt, setPartialAlias } from "./state.mjs";
+import { readProfiles, getProfile, saveProfile } from "./profiles.mjs";
 
 /**
  * Users shown in the roll table: every non-GM user, plus any user id that
@@ -48,6 +49,13 @@ export async function openAliasEditor(ref) {
   const rowUsers = rollTableUserIds(rolls);
   const canMaskAll = (sameActorTokens(ref)?.length ?? 0) > 0;
 
+  // Knowledge profiles (0.7.0): reusable templates the GM can apply. Slugs are
+  // machine-generated [a-z0-9-] (safe in value=""); labels are set via
+  // textContent in render(). Loaded fresh each open.
+  const profiles = readProfiles();
+  const profileOptions = ['<option value=""></option>']
+    .concat(Object.keys(profiles).map(s => `<option value="${s}"></option>`)).join("");
+
   // Static, module-owned markup: localized strings and machine ids only.
   const skills = globalThis.pf1?.config?.skills ?? {};
   const skillOptions = ['<option value=""></option>']
@@ -67,6 +75,14 @@ export async function openAliasEditor(ref) {
     rollRows.push(`<tr><td colspan="3" class="${CSS.editor}-id-empty"></td></tr>`);
   }
   const content = [
+    `<div class="${CSS.editor}-row ${CSS.editor}-profile-bar">`,
+    `<div class="form-group ${CSS.editor}-group">`,
+    `<label for="pf15im-profile-select">${game.i18n.localize("PF15IM.Editor.ProfileLabel")}</label>`,
+    `<select id="pf15im-profile-select" name="profileApply">${profileOptions}</select>`,
+    "</div>",
+    `<button type="button" name="saveProfile" class="${CSS.editor}-save-profile">`,
+    `<i class="fa-solid fa-floppy-disk" inert></i> ${game.i18n.localize("PF15IM.Editor.SaveProfile")}</button>`,
+    "</div>",
     `<div class="${CSS.editor}-row">`,
     `<div class="form-group ${CSS.editor}-group">`,
     `<label for="pf15im-alias-input">${game.i18n.localize("PF15IM.Editor.AliasLabel")}</label>`,
@@ -216,6 +232,52 @@ export async function openAliasEditor(ref) {
       // interpolate even localized strings into the content template).
       const emptyCell = el.querySelector(`.${CSS.editor}-id-empty`);
       if ( emptyCell ) emptyCell.textContent = game.i18n.localize("PF15IM.Editor.IdNoPlayers");
+
+      // Knowledge profiles (0.7.0): label the apply dropdown, prefill on select,
+      // and wire "Save as profile" (labels via textContent — untrusted).
+      const profileSelect = el.querySelector("select[name=profileApply]");
+      if ( profileSelect ) {
+        for ( const opt of profileSelect.options ) {
+          opt.textContent = opt.value ? (profiles[opt.value]?.label ?? opt.value) : game.i18n.localize("PF15IM.Editor.ProfileNone");
+        }
+        profileSelect.addEventListener("change", () => {
+          const p = getProfile(profileSelect.value);
+          if ( !p ) return;
+          el.querySelector("input[name=alias]").value = p.alias ?? "";
+          el.querySelector("input[name=partialAlias]").value = p.partialAlias ?? "";
+          const mInput = el.querySelector("input[name=mysteryArt]");
+          if ( mInput ) mInput.value = p.mysteryArt ?? "";
+        });
+      }
+      const saveProfileBtn = el.querySelector("button[name=saveProfile]");
+      saveProfileBtn?.addEventListener("click", async () => {
+        const aliasVal = el.querySelector("input[name=alias]")?.value ?? "";
+        const partialVal = el.querySelector("input[name=partialAlias]")?.value ?? "";
+        const artVal = el.querySelector("input[name=mysteryArt]")?.value ?? "";
+        const label = await foundry.applications.api.DialogV2.prompt({
+          window: { title: "PF15IM.Editor.SaveProfileTitle", icon: "fa-solid fa-floppy-disk" },
+          content: `<div class="form-group"><label for="pf15im-profile-name">${game.i18n.localize("PF15IM.Editor.ProfileNameLabel")}</label>`
+            + `<input type="text" id="pf15im-profile-name" name="profileLabel" maxlength="${MAX_PROFILE_LABEL}" autocomplete="off" spellcheck="false"></div>`,
+          ok: {
+            icon: "fa-solid fa-floppy-disk", label: "PF15IM.Editor.SaveProfile",
+            // v13 DialogV2: read the field from the button's form, not the instance.
+            callback: (e, button) => button.form?.querySelector("input[name=profileLabel]")?.value ?? ""
+          },
+          rejectClose: false,
+          render: (e, dlg) => {
+            const inp = dlg.element.querySelector("input[name=profileLabel]");
+            if ( inp ) { inp.value = aliasVal; inp.focus(); inp.select(); }
+          }
+        });
+        if ( !label || !label.trim() ) return;
+        const slug = await saveProfile({ label, alias: aliasVal, partialAlias: partialVal, mysteryArt: artVal });
+        if ( !slug || !profileSelect ) return;
+        const saved = getProfile(slug);
+        let opt = [...profileSelect.options].find(o => o.value === slug);
+        if ( !opt ) { opt = document.createElement("option"); opt.value = slug; profileSelect.appendChild(opt); }
+        opt.textContent = saved?.label ?? slug;
+        ui.notifications.info(game.i18n.format("PF15IM.Editor.ProfileSaved", { label: saved?.label ?? slug }));
+      });
     }
   });
 

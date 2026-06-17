@@ -10,7 +10,7 @@ chat sender line, until the GM moves the **display tier** toward the truth:
 half-identified guess like `Diseased Kinder?`). The real Actor and Token names are never
 changed.
 
-Version **0.6.2** · Croaker's Ledger visual language · reusable infrastructure (not
+Version **0.7.0** · Croaker's Ledger visual language · reusable infrastructure (not
 campaign-specific).
 
 > **Updating to 0.6.x**: the registry storage format is v3. When coming from v1/v2 (≤0.4.0),
@@ -25,11 +25,11 @@ campaign-specific).
 In Foundry's **Add-on Modules → Install Module**, paste this **Manifest URL**:
 
 ```
-https://raw.githubusercontent.com/Dade512/pf15-identity-mask/main/module.json
+https://github.com/Dade512/pf15-identity-mask/releases/latest/download/module.json
 ```
 
-This tracks the latest release on `main`. Then enable **PF1.5 Identity Mask** in a `pf1` world
-(Foundry v13.350+).
+This always installs the latest release and drives Foundry's update check. Then enable
+**PF1.5 Identity Mask** in a `pf1` world (Foundry v13.350+).
 
 ## What it does
 
@@ -53,6 +53,15 @@ This tracks the latest release on `main`. Then enable **PF1.5 Identity Mask** in
   map token** (0.6.1); the GM always sees the true art. A campaign-wide default image is set in
   module settings (default: the core "mystery man" silhouette), with an optional per-mask
   override in the editor. Dynamic-ring tokens keep their true art on the canvas (fail-open).
+- **Knowledge profiles (0.7.0)**: save a reusable masking template — `{alias, partial alias,
+  mystery art}` under a name — and re-apply it to any token without retyping. In the mask editor,
+  **Apply Profile** prefills the three fields from a saved profile, and **Save as profile** stores
+  the current fields. Profiles are managed (list, delete, JSON **import/export** for backup or
+  sharing) from **Configure Settings → Identity Mask → Identity Mask Tools**. Profiles are pure
+  templates — applying one fills the editor; nothing is linked onto the token entry.
+- **Maintenance (0.7.0)**: the same **Identity Mask Tools** dialog can **purge orphaned masks** —
+  entries whose scene or token no longer exists — in one click, so deleted-token entries don't
+  accumulate.
 - **Per-token independence**: two tokens of the same Actor (`Ghoul`) can carry different aliases
   (`Starved Corpse`, `Crawling Shape`) with independent display tiers.
 - **Persistence**: mask state survives combatant removal/re-add, combat deletion/recreation,

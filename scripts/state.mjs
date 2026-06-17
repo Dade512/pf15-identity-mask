@@ -15,7 +15,7 @@
  * and identification roll records (ALL player-readable; see spec 17.4).
  */
 
-import { MODULE_ID, SETTING_REGISTRY, SETTING_MYSTERY_ART, MAX_ALIAS_LENGTH, MAX_PATH_LENGTH, DEFAULT_MYSTERY_ART, REGISTRY_VERSION, DISPLAY_TIERS, ID_STATUSES, MAX_NOTE_LENGTH } from "./const.mjs";
+import { MODULE_ID, SETTING_REGISTRY, SETTING_MYSTERY_ART, SETTING_PROFILES, MAX_ALIAS_LENGTH, MAX_PATH_LENGTH, DEFAULT_MYSTERY_ART, REGISTRY_VERSION, DISPLAY_TIERS, ID_STATUSES, MAX_NOTE_LENGTH } from "./const.mjs";
 import { syncTokenArt } from "./canvas.mjs";
 
 /**
@@ -91,6 +91,54 @@ export function registerSettings() {
     default: DEFAULT_MYSTERY_ART,
     onChange: () => { syncTracker(); syncTokenArt(); }
   });
+  // Creature-knowledge profiles (0.7.0): reusable {label, alias, partialAlias,
+  // mysteryArt} templates keyed by slug. World-scope, GM-managed; no live
+  // render depends on it (the editor reads it on open), so no onChange.
+  game.settings.register(MODULE_ID, SETTING_PROFILES, {
+    scope: "world",
+    config: false,
+    type: Object,
+    default: {}
+  });
+}
+
+/**
+ * Remove mask entries whose scene or token no longer exists (0.7.0 housekeeping).
+ * Reuses the single write path, so an unknown/newer container version is refused
+ * exactly as elsewhere. GM only. A token on a not-currently-loaded scene still
+ * counts as present (the scene and its TokenDocument exist in game.scenes).
+ * @returns {Promise<number>}  Count of orphaned entries removed.
+ */
+export async function purgeOrphanedEntries() {
+  let removed = 0;
+  await updateRegistry(entries => {
+    for ( const key of Object.keys(entries) ) {
+      const idx = key.indexOf(":");
+      const sceneId = (idx < 0) ? key : key.slice(0, idx);
+      const tokenId = (idx < 0) ? "" : key.slice(idx + 1);
+      const exists = !!game.scenes.get(sceneId)?.tokens.get(tokenId);
+      if ( !exists ) { delete entries[key]; removed++; }
+    }
+    return removed > 0;
+  });
+  return removed;
+}
+
+/**
+ * Count mask entries whose scene or token no longer exists, WITHOUT writing
+ * (for a confirmation prompt). GM-readable.
+ * @returns {number}
+ */
+export function countOrphanedEntries() {
+  const entries = readEntries(game.settings.get(MODULE_ID, SETTING_REGISTRY));
+  let n = 0;
+  for ( const key of Object.keys(entries) ) {
+    const idx = key.indexOf(":");
+    const sceneId = (idx < 0) ? key : key.slice(0, idx);
+    const tokenId = (idx < 0) ? "" : key.slice(idx + 1);
+    if ( !game.scenes.get(sceneId)?.tokens.get(tokenId) ) n++;
+  }
+  return n;
 }
 
 /**

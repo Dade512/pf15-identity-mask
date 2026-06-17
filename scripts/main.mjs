@@ -11,9 +11,11 @@ import { onRenderCombatTracker } from "./tracker.mjs";
 import { onRenderTokenHUD } from "./hud.mjs";
 import { onDrawToken, onRefreshToken } from "./canvas.mjs";
 import { onRenderChatMessageHTML } from "./chat.mjs";
+import { registerToolsMenu } from "./tools.mjs";
 
 Hooks.once("init", () => {
   registerSettings();
+  registerToolsMenu();
 });
 
 // One-time v1/v2 -> v3 registry container migration (GM client; idempotent).

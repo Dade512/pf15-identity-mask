@@ -10,11 +10,23 @@ export const SETTING_REGISTRY = "registry";
 /** Key of the world-scope default mystery-art setting (0.6.0). */
 export const SETTING_MYSTERY_ART = "mysteryArt";
 
+/** Key of the world-scope creature-knowledge profiles setting (0.7.0). */
+export const SETTING_PROFILES = "profiles";
+
+/** Settings-menu key for the GM Tools dialog (0.7.0). */
+export const MENU_TOOLS = "tools";
+
 /** Maximum alias length after normalization. */
 export const MAX_ALIAS_LENGTH = 64;
 
+/** Maximum profile label length after normalization (0.7.0). */
+export const MAX_PROFILE_LABEL = 64;
+
 /** Current registry container schema version. */
 export const REGISTRY_VERSION = 3;
+
+/** Current profiles container schema version (0.7.0). */
+export const PROFILES_VERSION = 1;
 
 /** Allowed display tiers, in toggle-cycle order (spec 17.3). */
 export const DISPLAY_TIERS = ["masked", "partial", "revealed"];
@@ -48,5 +60,6 @@ export const CSS = {
   aliasText: "pf15im-alias-text",
   control: "pf15im-control",
   editor: "pf15im-editor",
-  hudControl: "pf15im-hud-control"
+  hudControl: "pf15im-hud-control",
+  tools: "pf15im-tools"
 };

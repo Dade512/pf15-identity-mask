@@ -264,3 +264,110 @@
   border-color: var(--baph-blood, #6e2a22);
   color: var(--baph-parchment, #d1c6b4);
 }
+
+/* ---------------------------------------------------------------------- */
+/* 0.7.0 — Editor profile bar + Knowledge Profiles / Tools dialog          */
+/* ---------------------------------------------------------------------- */
+
+.pf15im-editor-profile-bar {
+  align-items: flex-end;
+  gap: 0.6em;
+  padding-bottom: 0.4em;
+  border-bottom: 1px solid var(--baph-brass, #9e7d43);
+  margin-bottom: 0.5em;
+}
+
+.pf15im-editor-save-profile {
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Tools dialog (settings menu) */
+.pf15im-tools .pf15im-tools-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9em;
+  padding: 0.5em 0.6em 0.7em;
+}
+
+.pf15im-tools-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+
+.pf15im-tools-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-family: "Courier Prime", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: bold;
+  border-bottom: 1px solid var(--baph-brass, #9e7d43);
+  padding-bottom: 0.2em;
+}
+
+.pf15im-tools-btn {
+  width: auto;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: 0.2em 0.7em;
+}
+
+.pf15im-tools-profile-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+}
+
+.pf15im-tools-profile-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.2em 0.4em;
+  border: 1px solid var(--baph-leather, #8a7b66);
+  border-radius: 2px;
+}
+
+.pf15im-tools-profile-label {
+  font-weight: bold;
+  flex: 0 0 auto;
+}
+
+.pf15im-tools-profile-sub {
+  flex: 1 1 auto;
+  opacity: 0.75;
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pf15im-tools-profile-list .pf15im-tools-btn {
+  align-self: auto;
+  padding: 0.1em 0.5em;
+  font-size: 0.85em;
+}
+
+.pf15im-tools-field-label {
+  font-size: 0.85em;
+  opacity: 0.85;
+  margin-top: 0.2em;
+}
+
+.pf15im-tools-json {
+  width: 100%;
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 0.8em;
+  resize: vertical;
+}
+
+.pf15im-tools-replace {
+  font-size: 0.85em;
+}
