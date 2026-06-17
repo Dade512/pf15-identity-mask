@@ -12,3 +12,6 @@ lyras_audit.md
 
 # Release build artifact
 module.zip
+
+# Local-only mystery art (token-pack asset, kept local — not for redistribution)
+assets/mystery-form.webp

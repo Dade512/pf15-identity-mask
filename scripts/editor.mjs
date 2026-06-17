@@ -18,7 +18,7 @@
  */
 
 import { CSS, MAX_ALIAS_LENGTH, MAX_NOTE_LENGTH, MAX_PATH_LENGTH, MAX_PROFILE_LABEL, ID_STATUSES } from "./const.mjs";
-import { clearAlias, getMaskEntry, maskAllForActor, normalizeAlias, sameActorTokens, setAlias, setIdentification, setMysteryArt, setPartialAlias } from "./state.mjs";
+import { clearAlias, getMaskEntry, getMaskKey, maskAllForActor, normalizeAlias, recallForProfile, sameActorTokens, setAlias, setIdentification, setMysteryArt, setPartialAlias, setProfileLink } from "./state.mjs";
 import { readProfiles, getProfile, saveProfile } from "./profiles.mjs";
 
 /**
@@ -53,8 +53,12 @@ export async function openAliasEditor(ref) {
   // machine-generated [a-z0-9-] (safe in value=""); labels are set via
   // textContent in render(). Loaded fresh each open.
   const profiles = readProfiles();
+  const profileSlugs = Object.keys(profiles);
+  // Keep a dangling link (its profile was deleted) selectable so saving never
+  // silently drops it — recall still groups by slug. Labeled with the slug in render().
+  if ( entry?.profileId && !profileSlugs.includes(entry.profileId) ) profileSlugs.push(entry.profileId);
   const profileOptions = ['<option value=""></option>']
-    .concat(Object.keys(profiles).map(s => `<option value="${s}"></option>`)).join("");
+    .concat(profileSlugs.map(s => `<option value="${s}"></option>`)).join("");
 
   // Static, module-owned markup: localized strings and machine ids only.
   const skills = globalThis.pf1?.config?.skills ?? {};
@@ -83,6 +87,7 @@ export async function openAliasEditor(ref) {
     `<button type="button" name="saveProfile" class="${CSS.editor}-save-profile">`,
     `<i class="fa-solid fa-floppy-disk" inert></i> ${game.i18n.localize("PF15IM.Editor.SaveProfile")}</button>`,
     "</div>",
+    `<p class="hint">${game.i18n.localize("PF15IM.Editor.ProfileHint")}</p>`,
     `<div class="${CSS.editor}-row">`,
     `<div class="form-group ${CSS.editor}-group">`,
     `<label for="pf15im-alias-input">${game.i18n.localize("PF15IM.Editor.AliasLabel")}</label>`,
@@ -120,7 +125,9 @@ export async function openAliasEditor(ref) {
     ...rollRows,
     "</tbody></table>",
     "</fieldset>",
-    `<p class="hint ${CSS.editor}-id-warning">${game.i18n.localize("PF15IM.Editor.IdPlayerReadable")}</p>`
+    `<p class="hint ${CSS.editor}-id-warning">${game.i18n.localize("PF15IM.Editor.IdPlayerReadable")}</p>`,
+    `<fieldset class="${CSS.editor}-recall" hidden><legend>${game.i18n.localize("PF15IM.Editor.RecallLegend")}</legend>`,
+    `<div class="${CSS.editor}-recall-body"></div></fieldset>`
   ].join("");
 
   const collect = button => {
@@ -132,6 +139,7 @@ export async function openAliasEditor(ref) {
       idDc: f.idDc?.value ?? null,
       idNote: f.idNote?.value ?? "",
       mysteryArt: f.mysteryArt?.value ?? "",
+      profileId: f.profileApply?.value ?? "",
       rolls: {}
     };
     for ( const userId of rowUsers ) {
@@ -240,7 +248,11 @@ export async function openAliasEditor(ref) {
         for ( const opt of profileSelect.options ) {
           opt.textContent = opt.value ? (profiles[opt.value]?.label ?? opt.value) : game.i18n.localize("PF15IM.Editor.ProfileNone");
         }
+        // Programmatic .value assignment fires no change event → prefill stays off,
+        // so reopening a linked token never re-clobbers a customized alias.
+        profileSelect.value = entry?.profileId ?? "";
         profileSelect.addEventListener("change", () => {
+          renderRecall(profileSelect.value);
           const p = getProfile(profileSelect.value);
           if ( !p ) return;
           el.querySelector("input[name=alias]").value = p.alias ?? "";
@@ -249,6 +261,35 @@ export async function openAliasEditor(ref) {
           if ( mInput ) mInput.value = p.mysteryArt ?? "";
         });
       }
+
+      // Cross-encounter recall (0.8.0, GM-only): list PCs who reached partial/
+      // identified on OTHER tokens sharing this profile. Excludes the current
+      // token (its rolls are in the table above). Player names via textContent.
+      const renderRecall = (profileId) => {
+        const fieldset = el.querySelector(`.${CSS.editor}-recall`);
+        const body = el.querySelector(`.${CSS.editor}-recall-body`);
+        if ( !fieldset || !body ) return;
+        body.replaceChildren();
+        const data = recallForProfile(profileId, { excludeKey: getMaskKey(ref) });
+        const rows = Object.entries(data)
+          .filter(([, agg]) => (agg.bestOutcome === "partial") || (agg.bestOutcome === "identified"));
+        if ( !rows.length ) { fieldset.hidden = true; return; }
+        for ( const [userId, agg] of rows ) {
+          const row = document.createElement("p");
+          row.classList.add(`${CSS.editor}-recall-row`);
+          const name = document.createElement("span");
+          name.classList.add(`${CSS.editor}-recall-name`);
+          name.textContent = game.users.get(userId)?.name ?? userId;
+          const detail = document.createElement("span");
+          detail.classList.add(`${CSS.editor}-recall-detail`);
+          detail.textContent = ` — ${game.i18n.localize(`PF15IM.IdStatus.${agg.bestOutcome}`)}`
+            + ` · ${game.i18n.format("PF15IM.Editor.RecallEncounters", { count: agg.encounters })}`;
+          row.append(name, detail);
+          body.appendChild(row);
+        }
+        fieldset.hidden = false;
+      };
+      renderRecall(entry?.profileId ?? "");
       const saveProfileBtn = el.querySelector("button[name=saveProfile]");
       saveProfileBtn?.addEventListener("click", async () => {
         const aliasVal = el.querySelector("input[name=alias]")?.value ?? "";
@@ -283,7 +324,7 @@ export async function openAliasEditor(ref) {
 
   if ( !result || typeof result !== "object" ) return;
   if ( result.action === "clear" ) { await clearAlias(ref); return; }
-  if ( result.action === "maskAll" ) { await openMaskAllDialog(ref, result.alias, result.partialAlias); return; }
+  if ( result.action === "maskAll" ) { await openMaskAllDialog(ref, result.alias, result.partialAlias, result.profileId); return; }
   if ( result.action !== "save" ) return;
 
   // Empty alias = clear the whole entry; nothing further to write.
@@ -291,6 +332,7 @@ export async function openAliasEditor(ref) {
   await setAlias(ref, result.alias);
   await setPartialAlias(ref, result.partialAlias);
   await setMysteryArt(ref, result.mysteryArt);
+  await setProfileLink(ref, result.profileId);
 
   // Identification container: shared skill/DC/note + per-player rolls,
   // one write. NEVER touches the display tier (spec 17.4).
@@ -310,9 +352,10 @@ export async function openAliasEditor(ref) {
  * @param {import("./state.mjs").MaskRef|Combatant} ref
  * @param {unknown} rawAlias         Alias text from the editor form.
  * @param {unknown} rawPartialAlias  Partial alias text from the editor form.
+ * @param {unknown} rawProfileId     Linked profile slug from the editor form (0.8.0).
  * @returns {Promise<void>}
  */
-async function openMaskAllDialog(ref, rawAlias, rawPartialAlias) {
+async function openMaskAllDialog(ref, rawAlias, rawPartialAlias, rawProfileId) {
   const alias = normalizeAlias(rawAlias);
   if ( !alias ) {
     ui.notifications.warn("PF15IM.MaskAll.NeedAlias", { localize: true });
@@ -381,6 +424,7 @@ async function openMaskAllDialog(ref, rawAlias, rawPartialAlias) {
   const written = await maskAllForActor(ref, {
     alias: rawAlias,
     partialAlias: rawPartialAlias,
+    profileId: rawProfileId,
     overwrite: result.overwrite,
     numbered: result.numbered
   });

@@ -15,8 +15,11 @@
  * and identification roll records (ALL player-readable; see spec 17.4).
  */
 
-import { MODULE_ID, SETTING_REGISTRY, SETTING_MYSTERY_ART, SETTING_PROFILES, MAX_ALIAS_LENGTH, MAX_PATH_LENGTH, DEFAULT_MYSTERY_ART, REGISTRY_VERSION, DISPLAY_TIERS, ID_STATUSES, MAX_NOTE_LENGTH } from "./const.mjs";
+import { MODULE_ID, SETTING_REGISTRY, SETTING_MYSTERY_ART, SETTING_PROFILES, MAX_ALIAS_LENGTH, MAX_PATH_LENGTH, DEFAULT_MYSTERY_ART, REGISTRY_VERSION, DISPLAY_TIERS, ID_STATUSES, MAX_NOTE_LENGTH, MAX_PROFILE_LABEL } from "./const.mjs";
 import { syncTokenArt } from "./canvas.mjs";
+
+/** A mask entry's profileId stores a profile slug exactly as slugify() produces. */
+const PROFILE_ID_RE = new RegExp(`^[a-z0-9-]{1,${MAX_PROFILE_LABEL}}$`);
 
 /**
  * Normalize any known registry shape to its entries map (tri-shape reader,
@@ -61,6 +64,7 @@ function isWritableContainer(raw) {
  * @typedef {{alias: string, partialAlias: string|null,
  *   displayTier: "masked"|"partial"|"revealed",
  *   mysteryArt: string|null,
+ *   profileId: string|null,
  *   identification?: object}} MaskEntry
  */
 
@@ -244,7 +248,8 @@ function normalizeEntry(entry) {
   else displayTier = "masked";
   const partialAlias = normalizeAlias(entry.partialAlias ?? "") || null;
   const mysteryArt = normalizeImagePath(entry.mysteryArt ?? "") || null;
-  const out = { alias, partialAlias, displayTier, mysteryArt };
+  const profileId = normalizeProfileId(entry.profileId);
+  const out = { alias, partialAlias, displayTier, mysteryArt, profileId };
   const identification = normalizeIdentification(entry.identification);
   if ( identification ) out.identification = identification;
   return out;
@@ -516,6 +521,20 @@ export function normalizeImagePath(value) {
 }
 
 /**
+ * Normalize an untrusted profile-link slug (0.8.0). A mask entry's optional
+ * profileId is the stable grouping key for cross-encounter recall; it stores a
+ * profile slug as profiles.mjs::slugify produces ([a-z0-9-], <= MAX_PROFILE_LABEL).
+ * A dangling link (the profile was later deleted) stays valid — recall groups by
+ * slug equality regardless. A local regex avoids importing slugify (which would
+ * create an import cycle: profiles.mjs already imports the sanitizers here).
+ * @param {unknown} value
+ * @returns {string|null}  The valid slug, or null.
+ */
+export function normalizeProfileId(value) {
+  return (typeof value === "string") && PROFILE_ID_RE.test(value) ? value : null;
+}
+
+/**
  * Apply a mutation to a cloned registry and persist it. Fails fast with a
  * localized warning for non-GM users; the server would reject them anyway.
  * @param {(entries: object) => boolean} mutate  Return true if anything changed.
@@ -568,6 +587,7 @@ export async function setAlias(ref, rawAlias) {
     const next = { alias, displayTier: prev?.displayTier ?? "masked" };
     if ( prev?.partialAlias ) next.partialAlias = prev.partialAlias;
     if ( prev?.mysteryArt ) next.mysteryArt = prev.mysteryArt;
+    if ( prev?.profileId ) next.profileId = prev.profileId;
     if ( prev?.identification ) next.identification = prev.identification;
     entries[key] = next;
     return true;
@@ -592,6 +612,7 @@ export async function setPartialAlias(ref, rawPartialAlias) {
     const next = { alias: prev.alias, displayTier: prev.displayTier };
     if ( partialAlias ) next.partialAlias = partialAlias;
     if ( prev.mysteryArt ) next.mysteryArt = prev.mysteryArt;
+    if ( prev.profileId ) next.profileId = prev.profileId;
     if ( prev.identification ) next.identification = prev.identification;
     entries[key] = next;
     return true;
@@ -630,6 +651,7 @@ export async function setDisplayTier(ref, tier) {
     const next = { alias: prev.alias, displayTier: tier };
     if ( prev.partialAlias ) next.partialAlias = prev.partialAlias;
     if ( prev.mysteryArt ) next.mysteryArt = prev.mysteryArt;
+    if ( prev.profileId ) next.profileId = prev.profileId;
     if ( prev.identification ) next.identification = prev.identification;
     entries[key] = next;
     return true;
@@ -655,6 +677,7 @@ export async function setMysteryArt(ref, rawPath) {
     const next = { alias: prev.alias, displayTier: prev.displayTier };
     if ( prev.partialAlias ) next.partialAlias = prev.partialAlias;
     if ( mysteryArt ) next.mysteryArt = mysteryArt;
+    if ( prev.profileId ) next.profileId = prev.profileId;
     if ( prev.identification ) next.identification = prev.identification;
     entries[key] = next;
     return true;
@@ -702,10 +725,71 @@ export async function setIdentification(ref, data) {
     const next = { alias: prev.alias, displayTier: prev.displayTier };
     if ( prev.partialAlias ) next.partialAlias = prev.partialAlias;
     if ( prev.mysteryArt ) next.mysteryArt = prev.mysteryArt;
+    if ( prev.profileId ) next.profileId = prev.profileId;
     if ( clean ) next.identification = clean;
     entries[key] = next;
     return true;
   });
+}
+
+/**
+ * Set or clear the profile link on an existing mask entry (0.8.0). The link is
+ * the stable grouping key for cross-encounter recall (recallForProfile).
+ * Sanitized as a profile slug; empty/invalid clears it. GM only. Touches ONLY
+ * profileId — never alias, tier, art, or identification (decoupled, same posture
+ * as the other field setters).
+ * @param {MaskRef|Combatant} ref
+ * @param {unknown} rawSlug
+ * @returns {Promise<boolean>}
+ */
+export async function setProfileLink(ref, rawSlug) {
+  const key = getMaskKey(ref);
+  if ( !key ) return false;
+  const profileId = normalizeProfileId(rawSlug);
+  return updateRegistry(entries => {
+    const prev = normalizeEntry(entries[key]);
+    if ( !prev || (prev.profileId === profileId) ) return false;
+    const next = { alias: prev.alias, displayTier: prev.displayTier };
+    if ( prev.partialAlias ) next.partialAlias = prev.partialAlias;
+    if ( prev.mysteryArt ) next.mysteryArt = prev.mysteryArt;
+    if ( profileId ) next.profileId = profileId;
+    if ( prev.identification ) next.identification = prev.identification;
+    entries[key] = next;
+    return true;
+  });
+}
+
+/**
+ * Cross-encounter knowledge recall (0.8.0): aggregate per-user identification
+ * across every mask entry linked to the same profile. Pure and surface-agnostic
+ * so a future player-side recall surface can reuse it unchanged (filtered to one
+ * user) with no schema change — the GM editor is the only 0.8.0 consumer. Reads
+ * only already-player-readable rolls; goes through normalizeEntry so invalid
+ * records are already dropped.
+ * @param {string} profileId            The grouping slug (entry.profileId).
+ * @param {{excludeKey?: string|null}} [options]  Registry key to skip — the
+ *   current encounter, whose rolls the editor already shows.
+ * @returns {Record<string, {bestOutcome: string, encounters: number, lastAt: number}>}
+ */
+export function recallForProfile(profileId, { excludeKey = null } = {}) {
+  const out = {};
+  if ( !profileId ) return out;
+  const rank = { unidentified: 0, partial: 1, identified: 2 };
+  const entries = readEntries(game.settings.get(MODULE_ID, SETTING_REGISTRY));
+  for ( const [key, raw] of Object.entries(entries) ) {
+    if ( key === excludeKey ) continue;
+    const entry = normalizeEntry(raw);
+    if ( !entry || (entry.profileId !== profileId) ) continue;
+    const rolls = entry.identification?.rolls ?? {};
+    for ( const [userId, record] of Object.entries(rolls) ) {
+      if ( rank[record.outcome] === undefined ) continue;
+      const agg = out[userId] ??= { bestOutcome: record.outcome, encounters: 0, lastAt: 0 };
+      agg.encounters += 1;
+      if ( rank[record.outcome] > rank[agg.bestOutcome] ) agg.bestOutcome = record.outcome;
+      if ( (record.updatedAt ?? 0) > agg.lastAt ) agg.lastAt = record.updatedAt ?? 0;
+    }
+  }
+  return out;
 }
 
 /**
@@ -733,10 +817,11 @@ export function sameActorTokens(ref) {
  * @param {{alias: unknown, partialAlias?: unknown, overwrite?: boolean, numbered?: boolean}} options
  * @returns {Promise<number>}  Count of entries written (0 on failure/no-op).
  */
-export async function maskAllForActor(ref, { alias, partialAlias, overwrite = false, numbered = false } = {}) {
+export async function maskAllForActor(ref, { alias, partialAlias, profileId, overwrite = false, numbered = false } = {}) {
   const baseAlias = normalizeAlias(alias);
   if ( !baseAlias ) return 0;
   const basePartial = normalizeAlias(partialAlias ?? "") || null;
+  const link = normalizeProfileId(profileId);
   const tokens = sameActorTokens(ref);
   if ( !tokens?.length ) return 0;
   let written = 0;
@@ -751,6 +836,7 @@ export async function maskAllForActor(ref, { alias, partialAlias, overwrite = fa
       const suffix = (numbered && (targets.length > 1)) ? ` ${i + 1}` : "";
       const next = { alias: normalizeAlias(baseAlias + suffix), displayTier: "masked" };
       if ( basePartial ) next.partialAlias = normalizeAlias(basePartial + suffix);
+      if ( link ) next.profileId = link;
       entries[key] = next;
     });
     written = targets.length;

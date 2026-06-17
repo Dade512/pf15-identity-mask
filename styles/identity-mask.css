@@ -371,3 +371,43 @@
 .pf15im-tools-replace {
   font-size: 0.85em;
 }
+
+/* ---------------------------------------------------------------------- */
+/* 0.8.0 — Editor cross-encounter recall panel                             */
+/* ---------------------------------------------------------------------- */
+
+.pf15im-editor fieldset.pf15im-editor-recall {
+  border: 1px solid var(--baph-leather, #8a7b66);
+  border-radius: 2px;
+  margin-top: 0.5em;
+}
+
+.pf15im-editor fieldset.pf15im-editor-recall legend {
+  font-family: "Courier Prime", "Courier New", monospace;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--baph-ink-faded, #5e5246);
+}
+
+.pf15im-editor .pf15im-editor-recall-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+
+.pf15im-editor .pf15im-editor-recall-row {
+  margin: 0;
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 0.78rem;
+  color: var(--baph-ink, #2a231d);
+}
+
+.pf15im-editor .pf15im-editor-recall-name {
+  font-family: "Alegreya", "Georgia", serif;
+  font-weight: 700;
+}
+
+.pf15im-editor .pf15im-editor-recall-detail {
+  color: var(--baph-ink-faded, #5e5246);
+}

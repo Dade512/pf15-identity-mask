@@ -10,7 +10,7 @@ chat sender line, until the GM moves the **display tier** toward the truth:
 half-identified guess like `Diseased Kinder?`). The real Actor and Token names are never
 changed.
 
-Version **0.7.0** · Croaker's Ledger visual language · reusable infrastructure (not
+Version **0.8.0** · Croaker's Ledger visual language · reusable infrastructure (not
 campaign-specific).
 
 > **Updating to 0.6.x**: the registry storage format is v3. When coming from v1/v2 (≤0.4.0),
@@ -57,11 +57,18 @@ This always installs the latest release and drives Foundry's update check. Then 
   mystery art}` under a name — and re-apply it to any token without retyping. In the mask editor,
   **Apply Profile** prefills the three fields from a saved profile, and **Save as profile** stores
   the current fields. Profiles are managed (list, delete, JSON **import/export** for backup or
-  sharing) from **Configure Settings → Identity Mask → Identity Mask Tools**. Profiles are pure
-  templates — applying one fills the editor; nothing is linked onto the token entry.
+  sharing) from **Configure Settings → Identity Mask → Identity Mask Tools**. In 0.7.0 profiles
+  were pure templates; **0.8.0 also lets a profile be linked to a token for cross-encounter
+  recall** (see below).
 - **Maintenance (0.7.0)**: the same **Identity Mask Tools** dialog can **purge orphaned masks** —
   entries whose scene or token no longer exists — in one click, so deleted-token entries don't
   accumulate.
+- **Knowledge recall (0.8.0)**: link a masked token to a knowledge profile — the editor's
+  **Profile** dropdown now both prefills the template and remembers the link. The editor then
+  shows a GM-only **Prior Knowledge of This Kind** panel: which players have already identified
+  or partially identified the same kind of creature in *earlier* encounters, so the GM can decide
+  what to reveal. **Mask All** carries the link to every token it masks. Recall is GM-only and
+  the shared display tier is unchanged.
 - **Per-token independence**: two tokens of the same Actor (`Ghoul`) can carry different aliases
   (`Starved Corpse`, `Crawling Shape`) with independent display tiers.
 - **Persistence**: mask state survives combatant removal/re-add, combat deletion/recreation,
@@ -96,10 +103,10 @@ What this module guarantees:
   the existing chat log. Message *content* and third-party chat decorations are not masked.
 - At the Partial tier with no partial alias set, the fallback is the **public alias — never
   the true name**.
-- The module **adds zero additional true-name exposure**: the registry setting stores only
-  `{alias, partialAlias?, displayTier, mysteryArt?, identification?}` (never the true name), and
-  module-created DOM contains no true name in tooltips, titles, ARIA attributes, alt text,
-  hidden text, comments, data attributes, or debug output.
+- The module **adds zero true-name exposure**: the registry setting stores only
+  `{alias, partialAlias?, displayTier, mysteryArt?, profileId?, identification?}` (never the true
+  name), and module-created DOM contains no true name in tooltips, titles, ARIA attributes, alt
+  text, hidden text, comments, data attributes, or debug output.
 - **Mystery art** (0.6.0) is display config, not a secret: the campaign-default image (a world
   setting) and any per-mask override are readable by player clients. They are image paths,
   never a true name; the GM always sees the true art.
@@ -109,6 +116,11 @@ What this module guarantees:
   and every player's total, outcome, and timestamp included. Never put secrets in it.
   Logging a roll never changes what players see; the display tier remains a separate manual
   GM control.
+- **Knowledge-profile link** (0.8.0): linking a masked token to a profile stores the profile's
+  slug (`profileId`) in the registry setting. Like everything else there it is
+  **player-readable** — a console-savvy player could read it and look up the (already
+  player-readable) profile label. No ordinary player surface shows the link or the GM-only
+  recall panel; it adds no new *class* of exposure (presentation-layer, as above).
 
 Out of scope (unchanged by this module): targeting UI, the actor directory, journal content,
 token tooltips, message content/flavor, and third-party chat decorations.
@@ -148,7 +160,8 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 
 - State: one world-scope setting `pf15-identity-mask.registry`, a versioned container
   `{_v: 3, entries: {"<sceneId>:<tokenId>" → {alias, partialAlias?, displayTier,
-  mysteryArt?, identification?}}}`; older v1/v2 data migrates once on the GM client at `ready`.
+  mysteryArt?, profileId?, identification?}}}`; older v1/v2 data migrates once on the GM client at
+  `ready` (the optional `profileId` link is additive — no version bump).
 - Masking: `renderCombatTracker` hook (ApplicationV2, native `HTMLElement`), DOM mutation of
   fresh per-render nodes — idempotent by construction.
 - Sync: the world setting's `onChange` runs on every client on every change, re-renders the

@@ -39,12 +39,15 @@
       "IdNone": "— none —",
       "IdNoPlayers": "No players in this world to log rolls for.",
       "IdPlayerReadable": "Caution: everything recorded here (skill, DC, note, and each player's roll total and outcome) is technically readable by all player clients. Records never change what players see — only the display tier control does that.",
-      "ProfileLabel": "Apply Profile",
+      "ProfileLabel": "Profile",
+      "ProfileHint": "Applies the profile's alias/art and links this token to it, so the GM can recall who has identified this kind before. Blank = no link.",
       "ProfileNone": "— none —",
       "SaveProfile": "Save as profile",
       "SaveProfileTitle": "Save Knowledge Profile",
       "ProfileNameLabel": "Profile name",
-      "ProfileSaved": "Saved knowledge profile \"{label}\"."
+      "ProfileSaved": "Saved knowledge profile \"{label}\".",
+      "RecallLegend": "Prior Knowledge of This Kind",
+      "RecallEncounters": "{count} prior encounter(s)"
     },
     "IdStatus": {
       "unidentified": "Unidentified",
