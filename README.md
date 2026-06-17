@@ -10,7 +10,7 @@ chat sender line, until the GM moves the **display tier** toward the truth:
 half-identified guess like `Diseased Kinder?`). The real Actor and Token names are never
 changed.
 
-Version **0.8.0** · Croaker's Ledger visual language · reusable infrastructure (not
+Version **0.8.1** · Croaker's Ledger visual language · reusable infrastructure (not
 campaign-specific).
 
 > **Updating to 0.6.x**: the registry storage format is v3. When coming from v1/v2 (≤0.4.0),
@@ -170,7 +170,7 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 - Full rationale, evidence, and the visibility/permission matrices:
   [`docs/specs/identity-mask/identity-mask.spec.md`](docs/specs/identity-mask/identity-mask.spec.md).
 
-## Known limitations (0.6.2)
+## Known limitations (0.8.1)
 
 - Presentation-layer only (see Security above).
 - Mystery art masks both the **combat-tracker** portrait and the **canvas map token** (0.6.1);
@@ -181,12 +181,16 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 - Targeting UI, actor directory, journal content, and third-party chat decorations still show
   true names (out of scope; see Security section).
 - Message *content* and PF1 card inner target lines are not masked (fail-open by design).
-- Registry entries for since-deleted tokens linger harmlessly; a purge tool is deferred.
+- Registry entries for since-deleted tokens linger harmlessly until cleared with **Identity Mask
+  Tools → Purge orphaned masks** (0.7.0).
 - Assistant GMs share mask authority (they hold `SETTINGS_MODIFY` by default).
 - English localization only.
 
 ## Future possibilities (roadmap: `docs/specs/identity-mask/ROADMAP.md`)
 
-Creature knowledge-profile / art library (0.7.x) ·
-roll-assisted identification (prerequisites in the roadmap) · per-player display tiers ·
-actor-directory masking · registry purge tool · alias suggestion tables.
+Roll-assisted identification (record/suggest only — the GM still controls the displayed tier;
+prerequisites in the roadmap) · per-player display tiers · actor-directory masking ·
+alias suggestion tables.
+
+(Shipped since this list was first written: the creature knowledge-profile / art library and
+cross-encounter recall (0.7.0–0.8.0), and the registry purge tool (0.7.0).)

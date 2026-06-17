@@ -148,6 +148,18 @@ export class IdentityMaskTools extends ApplicationV2 {
   static async #onDeleteProfile(event, target) {
     const slug = target?.dataset?.slug;
     if ( !slug ) return;
+    const label = readProfiles()[slug]?.label ?? slug;
+    const ok = await foundry.applications.api.DialogV2.confirm({
+      window: { title: "PF15IM.Tools.DeleteProfileTitle", icon: "fa-solid fa-trash" },
+      // Label is untrusted GM text → assigned via textContent in render, never interpolated.
+      content: `<p class="${CSS.tools}-delete-confirm"></p>`,
+      rejectClose: false,
+      render: (event, dialog) => {
+        const p = dialog.element.querySelector(`.${CSS.tools}-delete-confirm`);
+        if ( p ) p.textContent = game.i18n.format("PF15IM.Tools.DeleteProfileConfirm", { label });
+      }
+    });
+    if ( !ok ) return;
     await deleteProfile(slug);
     this.render();
   }

@@ -1,13 +1,18 @@
 /**
- * Creature-knowledge profiles for pf15-identity-mask (0.7.0, thin slice).
+ * Creature-knowledge profile LIBRARY for pf15-identity-mask.
  *
  * A profile is a reusable masking template — `{label, alias, partialAlias,
  * mysteryArt}` — keyed by a slug derived from its label. Profiles let the GM
  * remember "what this kind of thing looks like when masked" and re-apply it to
- * any token without retyping. They are PURELY templates: applying one fills the
- * editor's alias / partial-alias / mystery-art fields, which the GM then saves
- * onto the specific token entry through the normal write path. No per-person
- * recall, no link stored on the entry — that deeper scope stays deferred.
+ * any token without retyping.
+ *
+ * This file owns ONLY the template library: CRUD plus JSON import/export.
+ * The 0.8.0 profile→entry LINK and the cross-encounter RECALL surface live
+ * elsewhere — `state.mjs` (the optional `profileId` on a mask entry,
+ * `setProfileLink`, `recallForProfile`) and `editor.mjs` (the Profile dropdown
+ * that links a token, and the GM-only "Prior Knowledge of This Kind" panel).
+ * Applying a profile here just prefills the editor fields; linking and recall
+ * are layered on top in those files.
  *
  * Stored in ONE world-scope setting (`profiles`) as a versioned container
  * `{_v: 1, profiles: {<slug>: {label, alias, partialAlias, mysteryArt}}}`.

@@ -79,6 +79,8 @@
       "ProfilesTitle": "Knowledge Profiles",
       "NoProfiles": "No profiles saved yet. Use \"Save as profile\" in the mask editor, or import below.",
       "Delete": "Delete",
+      "DeleteProfileTitle": "Delete Profile",
+      "DeleteProfileConfirm": "Delete the profile \"{label}\"? This cannot be undone.",
       "ExportLabel": "Export (copy this JSON to back up or share):",
       "ImportLabel": "Import (paste profile JSON):",
       "ImportPlaceholder": "Paste exported profile JSON here…",
