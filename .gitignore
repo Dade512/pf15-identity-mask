@@ -9,3 +9,6 @@ docs/
 
 # External audit artifact (kept local, out of git scope)
 lyras_audit.md
+
+# Release build artifact
+module.zip
