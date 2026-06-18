@@ -85,6 +85,10 @@ function decorateGmRow(li, combatant, entry) {
   const nameEl = tokenName?.querySelector(".name");
   const controls = li.querySelector(".combatant-controls");
   if ( !tokenName || !nameEl || !controls ) return;
+  // Idempotency: never decorate a row twice (mirrors hud.mjs). Core rebuilds the
+  // tracker part DOM each render so this is normally moot, but a non-core
+  // re-render of an existing <li> must not duplicate the line/controls.
+  if ( li.querySelector(`.${CSS.control}`) ) return;
 
   // Tier status line between the true name and the row controls: tier
   // word + what players currently see at that tier.

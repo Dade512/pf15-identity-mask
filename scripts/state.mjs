@@ -240,8 +240,11 @@ export function getMaskEntry(ref) {
  */
 function normalizeEntry(entry) {
   if ( !entry || (typeof entry.alias !== "string") ) return null;
-  const alias = normalizeAlias(entry.alias);
-  if ( !alias ) return null;
+  // A stored entry whose alias normalizes to empty is corruption — the UI clears
+  // such entries and migration excludes them. Fail CLOSED with a placeholder
+  // rather than returning null, so a broken masked entry can never fall through
+  // to the true name on any surface.
+  const alias = normalizeAlias(entry.alias) || "?";
   let displayTier;
   if ( DISPLAY_TIERS.includes(entry.displayTier) ) displayTier = entry.displayTier;
   else if ( entry.displayTier === undefined ) displayTier = (entry.revealed === true) ? "revealed" : "masked";

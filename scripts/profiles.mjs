@@ -23,6 +23,10 @@
 import { MODULE_ID, SETTING_PROFILES, PROFILES_VERSION, MAX_PROFILE_LABEL } from "./const.mjs";
 import { normalizeAlias, normalizeImagePath } from "./state.mjs";
 
+/** A valid profile slug (as slugify() produces). Stored keys are re-checked on
+ *  read so a corrupted/hand-edited key can never reach the editor's value="". */
+const PROFILE_SLUG_RE = new RegExp(`^[a-z0-9-]{1,${MAX_PROFILE_LABEL}}$`);
+
 /**
  * Normalize any stored value to the profiles map (never null). Unknown/newer
  * container version → empty for reads (fail safe; writers refuse, see below).
@@ -45,7 +49,7 @@ export function readProfiles() {
   const out = {};
   for ( const [slug, value] of Object.entries(map) ) {
     const clean = normalizeProfile(value);
-    if ( clean && slug ) out[slug] = clean;
+    if ( clean && PROFILE_SLUG_RE.test(slug) ) out[slug] = clean;
   }
   return out;
 }

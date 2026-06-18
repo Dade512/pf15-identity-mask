@@ -10,13 +10,14 @@ chat sender line, until the GM moves the **display tier** toward the truth:
 half-identified guess like `Diseased Kinder?`). The real Actor and Token names are never
 changed.
 
-Version **0.8.1** · Croaker's Ledger visual language · reusable infrastructure (not
+Version **0.8.2** · Croaker's Ledger visual language · reusable infrastructure (not
 campaign-specific).
 
-> **Updating to 0.6.x**: the registry storage format is v3. When coming from v1/v2 (≤0.4.0),
-> restart the world and have **every connected client reload — especially GM clients — before
-> using any mask controls**, so a stale GM client cannot write the old format over the migrated
-> registry. 0.6.x changes no storage format; a normal reload of updated clients is enough.
+> **Updating**: the registry storage format is v3. When coming from v1/v2 (≤0.4.0), restart the
+> world and have **every connected client reload — especially GM clients — before using any mask
+> controls**, so a stale GM client cannot write the old format over the migrated registry. Updates
+> since 0.5.0 (including the additive `profileId` link in 0.8.0) change no storage format; a normal
+> reload of updated clients is enough.
 
 ---
 
@@ -167,10 +168,10 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 - Sync: the world setting's `onChange` runs on every client on every change, re-renders the
   tracker (popout included), sweeps posted chat messages via `ChatLog#updateMessage`, and
   refreshes canvas nameplates via `renderFlags`. No custom socket.
-- Full rationale, evidence, and the visibility/permission matrices:
-  [`docs/specs/identity-mask/identity-mask.spec.md`](docs/specs/identity-mask/identity-mask.spec.md).
+- Full rationale, evidence, and the visibility/permission matrices live in the project's internal
+  design spec (`docs/specs/identity-mask/identity-mask.spec.md`) — kept local, not distributed.
 
-## Known limitations (0.8.1)
+## Known limitations (0.8.2)
 
 - Presentation-layer only (see Security above).
 - Mystery art masks both the **combat-tracker** portrait and the **canvas map token** (0.6.1);
@@ -186,11 +187,12 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 - Assistant GMs share mask authority (they hold `SETTINGS_MODIFY` by default).
 - English localization only.
 
-## Future possibilities (roadmap: `docs/specs/identity-mask/ROADMAP.md`)
+## Future possibilities
 
-Roll-assisted identification (record/suggest only — the GM still controls the displayed tier;
-prerequisites in the roadmap) · per-player display tiers · actor-directory masking ·
-alias suggestion tables.
+(Tracked in the project's internal roadmap, kept local.) Roll-assisted *suggestion* — suggest a
+tier from logged identification rolls (manual recording already ships in 0.5.0; the GM still
+controls the displayed tier) · per-player display tiers · actor-directory masking · alias
+suggestion tables.
 
 (Shipped since this list was first written: the creature knowledge-profile / art library and
 cross-encounter recall (0.7.0–0.8.0), and the registry purge tool (0.7.0).)
