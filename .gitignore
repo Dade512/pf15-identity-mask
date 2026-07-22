@@ -15,3 +15,6 @@ module.zip
 
 # Local-only mystery art (token-pack asset, kept local — not for redistribution)
 assets/mystery-form.webp
+
+# Agent operating instructions (local-only, matches baphomet-utils convention)
+AGENTS.md
