@@ -171,7 +171,7 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 - Full rationale, evidence, and the visibility/permission matrices live in the project's internal
   design spec (`docs/specs/identity-mask/identity-mask.spec.md`) — kept local, not distributed.
 
-## Known limitations (0.8.2)
+## Known limitations (0.8.3)
 
 - Presentation-layer only (see Security above).
 - Mystery art masks both the **combat-tracker** portrait and the **canvas map token** (0.6.1);

@@ -2,7 +2,7 @@
   "id": "pf15-identity-mask",
   "title": "PF1.5 Identity Mask",
   "description": "Identity masking across tracker, canvas, and chat: conceal a creature's true name behind GM-set aliases with a three-tier display (masked / partial / revealed) until the table earns the reveal. Presentation-layer masking with server-authoritative GM-only control, styled in the Croaker's Ledger visual language.",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "compatibility": {
     "minimum": "13.350",
     "verified": "13.350"
