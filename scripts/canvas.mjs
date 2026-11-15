@@ -115,6 +115,59 @@ async function applyArtMask(token) {
 }
 
 /**
+ * True when an update would change a masked/partial token's art (0.8.4,
+ * TD-06). Accepts the nested (`{texture: {src}}`) and flat (`"texture.src"`)
+ * change shapes.
+ * @param {object|null} entry    The resolved mask entry.
+ * @param {object} changed       The update's change data.
+ * @returns {boolean}
+ */
+export function isMaskedArtChange(entry, changed) {
+  if ( mysteryArtFor(entry) === null ) return false;
+  if ( !changed || (typeof changed !== "object") ) return false;
+  const nested = changed.texture && (typeof changed.texture === "object")
+    && Object.hasOwn(changed.texture, "src");
+  return !!nested || Object.hasOwn(changed, "texture.src");
+}
+
+/**
+ * Handle preUpdateToken (0.8.4, TD-06 R-2 B): core's texture transition fades
+ * the TRUE new art in on every client (probe P1, ~1 s). For a masked/partial
+ * token's art change, turn the update animation off; the option travels with
+ * the update to all clients (probe P2: no fade, core still redraws, drawToken
+ * re-masks). Runs on every client because the hook fires only where the
+ * update starts. Never touches the change data; never blocks the update.
+ * @param {TokenDocument} doc
+ * @param {object} changed
+ * @param {object} options
+ */
+export function onPreUpdateToken(doc, changed, options) {
+  try {
+    if ( isMaskedArtChange(getMaskEntry(refForTokenDocument(doc)), changed) ) options.animate = false;
+  }
+  catch(err) {
+    console.error("pf15-identity-mask | preUpdateToken art check failed", err);
+  }
+}
+
+/**
+ * Handle updateToken (0.8.4, TD-06 R-1): after a texture or ring change the
+ * applied-src marker is stale, so clear it and re-apply. On 13.351 core's
+ * redraw already re-masks (probe P2); this is insurance against a future core
+ * that updates the texture without a full redraw. Non-GM only.
+ * @param {TokenDocument} doc
+ * @param {object} changed
+ */
+export function onUpdateToken(doc, changed) {
+  if ( game.user.isGM ) return;
+  if ( !changed || !(("texture" in changed) || ("ring" in changed)) ) return;
+  const token = doc?.object;
+  if ( !token ) return;
+  token._pf15imArtSrc = null;
+  applyArtMask(token);
+}
+
+/**
  * Re-evaluate every placeable's token art after a registry change (mask added/
  * removed, tier changed, or default art changed). Non-GM only.
  */

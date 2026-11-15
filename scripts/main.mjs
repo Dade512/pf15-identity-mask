@@ -9,7 +9,7 @@
 import { registerSettings, migrateRegistry } from "./state.mjs";
 import { onRenderCombatTracker } from "./tracker.mjs";
 import { onRenderTokenHUD } from "./hud.mjs";
-import { onDrawToken, onRefreshToken } from "./canvas.mjs";
+import { onDrawToken, onRefreshToken, onPreUpdateToken, onUpdateToken } from "./canvas.mjs";
 import { onRenderChatMessageHTML } from "./chat.mjs";
 import { registerToolsMenu } from "./tools.mjs";
 
@@ -25,4 +25,6 @@ Hooks.on("renderCombatTracker", onRenderCombatTracker);
 Hooks.on("renderTokenHUD", onRenderTokenHUD);
 Hooks.on("drawToken", onDrawToken);
 Hooks.on("refreshToken", onRefreshToken);
+Hooks.on("preUpdateToken", onPreUpdateToken);
+Hooks.on("updateToken", onUpdateToken);
 Hooks.on("renderChatMessageHTML", onRenderChatMessageHTML);
