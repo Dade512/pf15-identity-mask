@@ -17,6 +17,13 @@ jobs:
         id: tag
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Release gates (version, syntax, tests, download URL)
+        run: bash tools/release-check.sh "${{ steps.tag.outputs.version }}"
+
       - name: Build module zip
         run: |
           mkdir -p build/pf15-identity-mask/scripts build/pf15-identity-mask/styles build/pf15-identity-mask/lang
@@ -26,6 +33,9 @@ jobs:
           cp lang/*.json build/pf15-identity-mask/lang/
           [ -f README.md ] && cp README.md build/pf15-identity-mask/
           cd build && zip -r ../pf15-identity-mask.zip pf15-identity-mask/
+
+      - name: Release gates (zip contents)
+        run: bash tools/release-check.sh --zip pf15-identity-mask.zip
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

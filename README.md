@@ -10,7 +10,7 @@ chat sender line, until the GM moves the **display tier** toward the truth:
 half-identified guess like `Diseased Kinder?`). The real Actor and Token names are never
 changed.
 
-Version **0.8.2** · Croaker's Ledger visual language · reusable infrastructure (not
+Version **0.8.4** · Croaker's Ledger visual language · reusable infrastructure (not
 campaign-specific).
 
 > **Updating**: the registry storage format is v3. When coming from v1/v2 (≤0.4.0), restart the
@@ -171,12 +171,23 @@ Combatants without a scene token (rare) cannot be masked and keep core behavior.
 - Full rationale, evidence, and the visibility/permission matrices live in the project's internal
   design spec (`docs/specs/identity-mask/identity-mask.spec.md`) — kept local, not distributed.
 
-## Known limitations (0.8.3)
+## Known limitations (0.8.4)
 
 - Presentation-layer only (see Security above).
 - Mystery art masks both the **combat-tracker** portrait and the **canvas map token** (0.6.1);
   the mystery image path is player-readable display config. Dynamic-ring tokens keep true art on
   the canvas (fail-open; masking the ring subject is out of scope).
+- Changing a Masked or Partial token's art applies **without the fade animation**, for everyone,
+  the GM included (0.8.4). Core's fade would otherwise show players the true new art for about a
+  second.
+- With **Chat Portrait** active, its header portrait shows the mystery art for a masked speaker
+  (0.8.4). The true portrait path still sits in Chat Portrait's own message flag (presentation-layer
+  posture). Keep Chat Portrait's **"apply on combat tracker"** option **off**: it rewrites tracker
+  portraits after this module masks them.
+- Identification roll prefill (0.8.4) reads only the last 50 chat messages from the last 30
+  minutes, fills the **total** of empty rows only, and never picks the outcome.
+- If a Foundry or module update changes the tracker or chat markup this module targets, the GM
+  gets a one-time warning; until fixed, players may see true names or art (fail-open).
 - The display tier is global — every player sees the same thing. Per-player tiers (only the
   roller sees the name) are deliberately deferred.
 - Targeting UI, actor directory, journal content, and third-party chat decorations still show
