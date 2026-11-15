@@ -14,6 +14,7 @@
  */
 
 import { getMaskEntry, maskedNameFor, mysteryArtFor } from "./state.mjs";
+import { warnDriftOnce } from "./canary.mjs";
 
 /** chat-portrait's header image (class `chat-portrait-message-portrait-<systemId>`). */
 const PORTRAIT_SELECTOR = 'img[class*="chat-portrait-message-portrait"]';
@@ -27,7 +28,12 @@ const PORTRAIT_WATCH_MS = 10000;
  * @param {HTMLElement} html    The rendered message element.
  */
 export function onRenderChatMessageHTML(message, html) {
-  if ( game.user.isGM || !(html instanceof HTMLElement) ) return;
+  if ( !(html instanceof HTMLElement) ) return;
+  // Selector-drift canary (0.8.4): a token-speaker message must carry a sender line.
+  if ( game.user.isGM ) {
+    if ( message?.speaker?.token && !html.querySelector(".message-sender") ) warnDriftOnce("chat");
+    return;
+  }
   const sceneId = message?.speaker?.scene;
   const tokenId = message?.speaker?.token;
   if ( !sceneId || !tokenId ) return;

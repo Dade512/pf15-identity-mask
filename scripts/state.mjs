@@ -92,6 +92,7 @@ export function registerSettings() {
     scope: "world",
     config: true,
     type: String,
+    filePicker: "image",
     default: DEFAULT_MYSTERY_ART,
     onChange: () => { syncTracker(); syncTokenArt(); }
   });

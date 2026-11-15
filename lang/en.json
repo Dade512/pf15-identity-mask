@@ -95,7 +95,8 @@
       "SaveFailed": "Failed to save identity-mask state. See the console for details.",
       "NoToken": "This combatant has no scene token and cannot be masked.",
       "BadIdentification": "Invalid identification data; nothing was saved.",
-      "MigrationMalformed": "Identity-mask registry migration excluded {count} malformed items (see console)."
+      "MigrationMalformed": "Identity-mask registry migration excluded {count} malformed items (see console).",
+      "SelectorDrift": "Identity Mask could not find the {surface} elements it masks. A Foundry or module update may have changed them, so players may see true names or art. See the console."
     }
   }
 }

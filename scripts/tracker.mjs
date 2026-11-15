@@ -12,7 +12,8 @@
  * assigned through textContent / the alt property. No HTML interpolation.
  */
 
-import { CSS, TIER_META } from "./const.mjs";
+import { CSS, DEFAULT_MYSTERY_ART, TIER_META } from "./const.mjs";
+import { warnDriftOnce } from "./canary.mjs";
 import { getMaskEntry, getMaskKey, maskedNameFor, mysteryArtFor, setDisplayTier } from "./state.mjs";
 import { openAliasEditor } from "./editor.mjs";
 
@@ -25,8 +26,12 @@ export function onRenderCombatTracker(app, element) {
   const combat = app?.viewed;
   if ( !combat || !(element instanceof HTMLElement) ) return;
   const isGM = game.user.isGM;
+  const rows = element.querySelectorAll("li.combatant[data-combatant-id]");
+  // Selector-drift canary (0.8.4): the GM sees every combatant row, so a
+  // combat with turns but no matching rows means the markup changed.
+  if ( isGM && (combat.turns?.length > 0) && !rows.length ) warnDriftOnce("tracker");
 
-  for ( const li of element.querySelectorAll("li.combatant[data-combatant-id]") ) {
+  for ( const li of rows ) {
     const combatant = combat.combatants.get(li.dataset.combatantId);
     if ( !combatant ) continue;
 
@@ -65,7 +70,13 @@ function maskPlayerRow(li, shown, entry) {
   if ( imgEl ) {
     imgEl.alt = shown;
     const art = mysteryArtFor(entry);
-    if ( art ) imgEl.src = art;
+    if ( art ) {
+      // A bad mystery path falls back to the core silhouette, never the true art (0.8.4).
+      imgEl.addEventListener("error", () => {
+        if ( imgEl.src !== new URL(DEFAULT_MYSTERY_ART, location.href).href ) imgEl.src = DEFAULT_MYSTERY_ART;
+      }, { once: true });
+      imgEl.src = art;
+    }
   }
 }
 
