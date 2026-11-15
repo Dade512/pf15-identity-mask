@@ -20,6 +20,7 @@
 import { CSS, MAX_ALIAS_LENGTH, MAX_NOTE_LENGTH, MAX_PATH_LENGTH, MAX_PROFILE_LABEL, ID_STATUSES } from "./const.mjs";
 import { clearAlias, getMaskEntry, getMaskKey, maskAllForActor, normalizeAlias, recallForProfile, sameActorTokens, setEntry } from "./state.mjs";
 import { readProfiles, getProfile, saveProfile } from "./profiles.mjs";
+import { latestCheckTotals } from "./prefill.mjs";
 
 /**
  * Users shown in the roll table: every non-GM user, plus any user id that
@@ -234,6 +235,18 @@ export async function openAliasEditor(ref) {
         if ( !record ) continue;
         tr.querySelector(`input[name="total-${userId}"]`).value = record.total ?? "";
         tr.querySelector(`select[name="outcome-${userId}"]`).value = record.outcome;
+      }
+
+      // Roll prefill (0.8.4, TD-50b): seed EMPTY rows from each player's latest
+      // matching chat check. Total only — the outcome stays the GM's call, and a
+      // row with no outcome is not saved.
+      const prefill = latestCheckTotals(game.messages.contents, { skill: identification?.skill ?? null });
+      for ( const [userId, total] of prefill ) {
+        if ( rolls[userId] ) continue;
+        const input = el.querySelector(`input[name="total-${userId}"]`);
+        if ( !input || (input.value !== "") ) continue;
+        input.value = total;
+        input.title = game.i18n.localize("PF15IM.Editor.Prefilled");
       }
 
       // Empty-state "no players" cell text via textContent (hygiene: never

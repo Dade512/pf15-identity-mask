@@ -21,6 +21,7 @@
     },
     "Editor": {
       "Title": "Identity Mask",
+      "Prefilled": "Prefilled from this player's latest chat roll. Pick an outcome to record it.",
       "AliasLabel": "Public Alias",
       "PartialAliasLabel": "Partial Alias",
       "SkillUsed": "Skill Used",
