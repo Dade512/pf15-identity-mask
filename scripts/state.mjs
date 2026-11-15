@@ -714,15 +714,7 @@ export async function setIdentification(ref, data) {
   return updateRegistry(entries => {
     const prev = normalizeEntry(entries[key]);
     if ( !prev ) return false;
-    if ( clean ) {
-      // Module-generated timestamps: preserve only for unchanged rolls.
-      const prevRolls = prev.identification?.rolls ?? {};
-      for ( const [userId, record] of Object.entries(clean.rolls) ) {
-        const old = prevRolls[userId];
-        record.updatedAt = (old && (old.total === record.total) && (old.outcome === record.outcome))
-          ? old.updatedAt : Date.now();
-      }
-    }
+    if ( clean ) stampRolls(clean.rolls, prev.identification?.rolls ?? {}, Date.now());
     const unchanged = JSON.stringify(clean) === JSON.stringify(prev.identification ?? null);
     if ( unchanged ) return false;
     const next = { alias: prev.alias, displayTier: prev.displayTier };
@@ -757,6 +749,82 @@ export async function setProfileLink(ref, rawSlug) {
     if ( prev.mysteryArt ) next.mysteryArt = prev.mysteryArt;
     if ( profileId ) next.profileId = profileId;
     if ( prev.identification ) next.identification = prev.identification;
+    entries[key] = next;
+    return true;
+  });
+}
+
+/**
+ * Stamp module-generated timestamps on validated roll records (in place):
+ * an unchanged roll (same total AND outcome) keeps its stored updatedAt, a
+ * new or changed roll gets `now`.
+ * @param {object} cleanRolls  Validated rolls map (mutated).
+ * @param {object} prevRolls   The stored rolls map.
+ * @param {number} now
+ */
+export function stampRolls(cleanRolls, prevRolls, now) {
+  for ( const [userId, record] of Object.entries(cleanRolls) ) {
+    const old = prevRolls[userId];
+    record.updatedAt = (old && (old.total === record.total) && (old.outcome === record.outcome))
+      ? old.updatedAt : now;
+  }
+}
+
+/**
+ * Canonical stored shape of an entry (empty optionals omitted, fixed key
+ * order) so two entries compare by JSON.
+ * @param {MaskEntry} e
+ * @returns {object}
+ */
+function storedShape(e) {
+  const out = { alias: e.alias, displayTier: e.displayTier };
+  if ( e.partialAlias ) out.partialAlias = e.partialAlias;
+  if ( e.mysteryArt ) out.mysteryArt = e.mysteryArt;
+  if ( e.profileId ) out.profileId = e.profileId;
+  if ( e.identification ) out.identification = e.identification;
+  return out;
+}
+
+/**
+ * Apply every editor field to one entry in ONE registry write (0.8.4,
+ * TD-50a): alias, partial alias, mystery-art override, profile link and the
+ * identification container, each sanitized exactly like its single-field
+ * setter. Empty alias clears the entry. Display tier is preserved (new
+ * entries start "masked"); identification never touches it. GM only.
+ * @param {MaskRef|Combatant} ref
+ * @param {{alias: unknown, partialAlias: unknown, mysteryArt: unknown,
+ *   profileId: unknown, identification: object|null}} fields
+ * @returns {Promise<boolean>}  True when a write was persisted.
+ */
+export async function setEntry(ref, fields) {
+  const key = getMaskKey(ref);
+  if ( !key ) {
+    ui.notifications.warn("PF15IM.Warn.NoToken", { localize: true });
+    return false;
+  }
+  const alias = normalizeAlias(fields?.alias);
+  if ( !alias ) return clearAlias(ref);
+  let identification = null;
+  if ( fields.identification != null ) {
+    identification = validateIdentification(fields.identification);
+    if ( !identification ) {
+      ui.notifications.warn("PF15IM.Warn.BadIdentification", { localize: true });
+      return false;
+    }
+    if ( isEmptyIdentification(identification) ) identification = null;
+  }
+  return updateRegistry(entries => {
+    const prev = normalizeEntry(entries[key]);
+    if ( identification ) stampRolls(identification.rolls, prev?.identification?.rolls ?? {}, Date.now());
+    const next = storedShape({
+      alias,
+      displayTier: prev?.displayTier ?? "masked",
+      partialAlias: normalizeAlias(fields.partialAlias ?? "") || null,
+      mysteryArt: normalizeImagePath(fields.mysteryArt) || null,
+      profileId: normalizeProfileId(fields.profileId),
+      identification
+    });
+    if ( prev && (JSON.stringify(next) === JSON.stringify(storedShape(prev))) ) return false;
     entries[key] = next;
     return true;
   });

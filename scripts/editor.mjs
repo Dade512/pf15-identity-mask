@@ -18,7 +18,7 @@
  */
 
 import { CSS, MAX_ALIAS_LENGTH, MAX_NOTE_LENGTH, MAX_PATH_LENGTH, MAX_PROFILE_LABEL, ID_STATUSES } from "./const.mjs";
-import { clearAlias, getMaskEntry, getMaskKey, maskAllForActor, normalizeAlias, recallForProfile, sameActorTokens, setAlias, setIdentification, setMysteryArt, setPartialAlias, setProfileLink } from "./state.mjs";
+import { clearAlias, getMaskEntry, getMaskKey, maskAllForActor, normalizeAlias, recallForProfile, sameActorTokens, setEntry } from "./state.mjs";
 import { readProfiles, getProfile, saveProfile } from "./profiles.mjs";
 
 /**
@@ -327,20 +327,19 @@ export async function openAliasEditor(ref) {
   if ( result.action === "maskAll" ) { await openMaskAllDialog(ref, result.alias, result.partialAlias, result.profileId); return; }
   if ( result.action !== "save" ) return;
 
-  // Empty alias = clear the whole entry; nothing further to write.
-  if ( !normalizeAlias(result.alias) ) { await setAlias(ref, result.alias); return; }
-  await setAlias(ref, result.alias);
-  await setPartialAlias(ref, result.partialAlias);
-  await setMysteryArt(ref, result.mysteryArt);
-  await setProfileLink(ref, result.profileId);
-
-  // Identification container: shared skill/DC/note + per-player rolls,
-  // one write. NEVER touches the display tier (spec 17.4).
-  await setIdentification(ref, {
-    skill: result.idSkill,
-    dc: result.idDc,
-    publicNote: result.idNote,
-    rolls: result.rolls
+  // One registry write for the whole Save (0.8.4, TD-50a). Empty alias clears
+  // the entry. The identification container NEVER touches the display tier.
+  await setEntry(ref, {
+    alias: result.alias,
+    partialAlias: result.partialAlias,
+    mysteryArt: result.mysteryArt,
+    profileId: result.profileId,
+    identification: {
+      skill: result.idSkill,
+      dc: result.idDc,
+      publicNote: result.idNote,
+      rolls: result.rolls
+    }
   });
 }
 
