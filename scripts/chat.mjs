@@ -13,7 +13,13 @@
  * fail open (see spec section 15).
  */
 
-import { getMaskEntry, maskedNameFor } from "./state.mjs";
+import { getMaskEntry, maskedNameFor, mysteryArtFor } from "./state.mjs";
+
+/** chat-portrait's header image (class `chat-portrait-message-portrait-<systemId>`). */
+const PORTRAIT_SELECTOR = 'img[class*="chat-portrait-message-portrait"]';
+
+/** How long a rendered message is watched for chat-portrait's late image. */
+const PORTRAIT_WATCH_MS = 10000;
 
 /**
  * Handle renderChatMessageHTML.
@@ -38,6 +44,38 @@ export function onRenderChatMessageHTML(message, html) {
   for ( const sender of html.querySelectorAll(".message-sender") ) {
     replaceTextNodes(sender, shown);
   }
+  const art = mysteryArtFor(entry);
+  if ( art ) maskChatPortrait(html, art);
+}
+
+/**
+ * Show mystery art in chat-portrait's header image for a masked speaker
+ * (0.8.4, TD-51). Core calls renderChatMessageHTML (us) BEFORE the deprecated
+ * renderChatMessage that chat-portrait uses, and chat-portrait builds its img
+ * through a promise, so the image usually arrives after this handler. Swap any
+ * image present now, then watch the message element briefly for a late insert
+ * or src change. MutationObserver callbacks run before the next paint, so the
+ * true portrait is never drawn. Display-only; the message is never edited.
+ * @param {HTMLElement} html  The rendered message element.
+ * @param {string} art        The mystery image path.
+ */
+export function maskChatPortrait(html, art) {
+  const swap = () => {
+    for ( const img of html.querySelectorAll(PORTRAIT_SELECTOR) ) {
+      if ( img.getAttribute("src") === art ) continue;
+      img.setAttribute("src", art);
+      img.alt = "";
+    }
+  };
+  swap();
+  let wasConnected = html.isConnected;
+  const observer = new MutationObserver(() => {
+    if ( html.isConnected ) wasConnected = true;
+    else if ( wasConnected ) { observer.disconnect(); return; }
+    swap();
+  });
+  observer.observe(html, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
+  setTimeout(() => observer.disconnect(), PORTRAIT_WATCH_MS);
 }
 
 /**
