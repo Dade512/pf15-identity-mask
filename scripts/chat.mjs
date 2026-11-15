@@ -16,8 +16,13 @@
 import { getMaskEntry, maskedNameFor, mysteryArtFor } from "./state.mjs";
 import { warnDriftOnce } from "./canary.mjs";
 
-/** chat-portrait's header image (class `chat-portrait-message-portrait-<systemId>`). */
-const PORTRAIT_SELECTOR = 'img[class*="chat-portrait-message-portrait"]';
+/**
+ * chat-portrait's speaker portrait (class `chat-portrait-message-portrait-<systemId>`):
+ * an <img>, or a <video> for animated (.webm/video) art. Matched inside the
+ * message header only — chat-portrait also tags item icons in the content
+ * with the same class, and those are not the speaker's portrait.
+ */
+const PORTRAIT_SELECTOR = '[class*="chat-portrait-message-portrait"]';
 
 /** How long a rendered message is watched for chat-portrait's late image. */
 const PORTRAIT_WATCH_MS = 10000;
@@ -67,10 +72,25 @@ export function onRenderChatMessageHTML(message, html) {
  */
 export function maskChatPortrait(html, art) {
   const swap = () => {
-    for ( const img of html.querySelectorAll(PORTRAIT_SELECTOR) ) {
-      if ( img.getAttribute("src") === art ) continue;
-      img.setAttribute("src", art);
-      img.alt = "";
+    const header = html.querySelector(".message-header");
+    if ( !header ) return;
+    for ( const el of header.querySelectorAll(PORTRAIT_SELECTOR) ) {
+      if ( el.tagName === "VIDEO" ) {
+        // Animated portrait: replace the video with a still mystery image.
+        const img = document.createElement("img");
+        img.className = el.className;
+        for ( const attr of ["width", "height", "style"] ) {
+          if ( el.hasAttribute(attr) ) img.setAttribute(attr, el.getAttribute(attr));
+        }
+        img.setAttribute("src", art);
+        img.alt = "";
+        el.replaceWith(img);
+        continue;
+      }
+      if ( el.tagName !== "IMG" ) continue;
+      if ( el.getAttribute("src") === art ) continue;
+      el.setAttribute("src", art);
+      el.alt = "";
     }
   };
   swap();
